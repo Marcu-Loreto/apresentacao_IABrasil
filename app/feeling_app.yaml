@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  feeling_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: feeling_app:latest
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8501:8501"   # expõe apenas no host; use proxy reverso (nginx) para o domínio
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./:/app:rw
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8501 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+
+
+#           ## Expor por domínio (resumo)
+# 1. Crie registro DNS A para `www.feeling_check.etechats.com.br` apontando ao IP da VPS.
+# 2. Mantenha o container mapeado para 127.0.0.1:8501 (feeling.yaml).
+# 3. No host, instale Nginx e crie um site que faça proxy para http://127.0.0.1:8501 (incluir suporte a websocket).
+# 4. Use Certbot (Let's Encrypt) para obter TLS:
+#    sudo certbot --nginx -d www.feeling_check.etechats.com.br
+# 5. Abra portas 80/443 no firewall.
