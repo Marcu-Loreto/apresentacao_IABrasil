@@ -14,15 +14,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/requirements.txt
-RUN python -m pip install --upgrade pip && \
-    if [ -f /tmp/requirements.txt ]; then \
-      cp /tmp/requirements.txt /tmp/requirements.fixed && \
-      dos2unix /tmp/requirements.fixed || true && \
-      sed -i '1s/^\xEF\xBB\xBF//' /tmp/requirements.fixed && \
-      pip install --no-cache-dir -r /tmp/requirements.fixed; \
-    else \
-      pip install --no-cache-dir streamlit python-dotenv openai wordcloud networkx pyvis pillow; \
-    fi
+# RUN python -m pip install --upgrade pip && \
+#     if [ -f /tmp/requirements.txt ]; then \
+#       cp /tmp/requirements.txt /tmp/requirements.fixed && \
+#       dos2unix /tmp/requirements.fixed || true && \
+#       sed -i '1s/^\xEF\xBB\xBF//' /tmp/requirements.fixed && \
+#       pip install --no-cache-dir -r /tmp/requirements.fixed; \
+#     else \
+#       pip install --no-cache-dir streamlit python-dotenv openai wordcloud networkx pyvis pillow; \
+#     fi
 
 COPY . /app
 EXPOSE 8501
