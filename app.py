@@ -644,9 +644,20 @@ def carregar_sessao(uploaded_file):
 # ═══════════════════════════════════════════════════════════════
 
 def sincronizar_mensagens_api(session_id: str = "default"):
-    """
-    Sincroniza mensagens recebidas via API com o Streamlit
-    """
+    """Sincroniza mensagens recebidas via API com o Streamlit"""
+    
+    # DEBUG
+    st.sidebar.write("---")
+    st.sidebar.write("**🔍 Debug Sync:**")
+    
+    try:
+        # Obtém do banco
+        mensagens_api = SharedState.get_messages(session_id)
+        st.sidebar.caption(f"📥 Do banco: {len(mensagens_api)} msgs")
+        
+        # Obtém do Streamlit
+        mensagens_atuais = st.session_state.get("lista_mensagens", [])
+        st.sidebar.caption(f"💾 No Streamlit: {len(mensagens_atuais)} msgs")
     try:
         # Obtém mensagens do PostgreSQL
         mensagens_api = SharedState.get_messages(session_id)
