@@ -7,9 +7,15 @@ import os
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from psycopg2.pool import SimpleConnectionPool
+
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    from psycopg2.pool import SimpleConnectionPool
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    print("⚠️ psycopg2 não instalado. Instale: pip install psycopg2-binary")
 
 # Configuração PostgreSQL
 DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
@@ -25,6 +31,10 @@ _pool = None
 def get_pool():
     """Cria ou retorna pool de conexões"""
     global _pool
+    
+    if not PSYCOPG2_AVAILABLE:
+        return None
+    
     if _pool is None:
         try:
             _pool = SimpleConnectionPool(
@@ -68,7 +78,6 @@ def init_db():
     try:
         cursor = conn.cursor()
         
-        # Tabela de mensagens
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS messages (
                 id SERIAL PRIMARY KEY,
@@ -81,7 +90,6 @@ def init_db():
             )
         """)
         
-        # Índices para performance
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_session_id 
             ON messages(session_id, created_at DESC)
@@ -183,7 +191,7 @@ class Database:
                 })
             
             if limit:
-                messages.reverse()  # Ordem cronológica
+                messages.reverse()
             
             return messages
             
@@ -238,47 +246,14 @@ class Database:
             print(f"❌ Erro ao limpar sessão: {e}")
         finally:
             release_connection(conn)
-    
-    @staticmethod
-    def get_session_stats(session_id: str) -> Dict:
-        """Estatísticas de uma sessão"""
-        conn = get_connection()
-        if not conn:
-            return {}
-        
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as total_messages,
-                    MIN(created_at) as first_message,
-                    MAX(created_at) as last_message,
-                    COUNT(DISTINCT role) as unique_roles
-                FROM messages
-                WHERE session_id = %s
-            """, (session_id,))
-            
-            result = cursor.fetchone()
-            cursor.close()
-            
-            return {
-                "total_messages": result["total_messages"],
-                "first_message": result["first_message"].isoformat() if result["first_message"] else None,
-                "last_message": result["last_message"].isoformat() if result["last_message"] else None,
-                "unique_roles": result["unique_roles"]
-            }
-            
-        except Exception as e:
-            print(f"❌ Erro ao buscar stats: {e}")
-            return {}
-        finally:
-            release_connection(conn)
 
 
 # Testa conexão ao importar
 try:
-    get_pool()
-    DATABASE_AVAILABLE = True
+    if PSYCOPG2_AVAILABLE:
+        get_pool()
+        DATABASE_AVAILABLE = True
+    else:
+        DATABASE_AVAILABLE = False
 except:
     DATABASE_AVAILABLE = False
