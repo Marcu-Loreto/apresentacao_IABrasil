@@ -704,51 +704,7 @@ def sincronizar_mensagens_api(session_id: str = "default"):
     
     
     
-    # Na sidebar, após a seção de Sincronização API
-st.sidebar.write("---")
-st.sidebar.write("### 🔍 Debug")
-
-if st.sidebar.button("🧪 Testar PostgreSQL"):
-    try:
-        from database import Database
-        
-        # Lista todas as sessões
-        sessions = Database.list_sessions()
-        st.sidebar.write(f"**Sessões:** {len(sessions)}")
-        
-        # Mostra últimas mensagens
-        if sessions:
-            for sess in sessions[:3]:
-                msgs = Database.get_messages(sess, limit=1)
-                if msgs:
-                    st.sidebar.caption(f"`{sess}`: {len(msgs)} msgs")
-        
-    except Exception as e:
-        st.sidebar.error(f"Erro: {e}")
-
-# ## ✅ **CHECKLIST FINAL**
-
-# - [ ] PostgreSQL tem mensagens (✅ confirmado no DbGate)
-# - [ ] API consegue salvar mensagens (teste com curl)
-# - [ ] Streamlit consegue ler do PostgreSQL (teste no console)
-# - [ ] Sincronização manual funciona (botão na sidebar)
-# - [ ] Auto-sync ativado (opcional)
-
-# ---
-
-# ## 🎉 **PARABÉNS!**
-
-# Seu sistema está completo:
-# ```
-# N8N/Webhook
-#     ↓
-# FastAPI (porta 8000)
-#     ↓
-# PostgreSQL (persistência)
-#     ↓
-# Streamlit (porta 8502)
-#     ↓
-# Interface visual com análises
+    
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURAÇÃO DA INTERFACE
 # ═══════════════════════════════════════════════════════════════
