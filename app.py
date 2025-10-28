@@ -1182,90 +1182,90 @@ st.sidebar.write("---")
 #                             st.session_state["mostrar_relatorio_arquivo"] = True
 #                             st.rerun()
 
-st.sidebar.write("---")
+# st.sidebar.write("---")
 
-# Dicas de Uso
-st.sidebar.write("### 💡 Dicas de Uso")
-with st.sidebar.expander("Como usar"):
-    st.markdown("""
-    **🔧 Correção Ortográfica**
-    - Ative para corrigir automaticamente erros
-    - "vc" → "você", "nao" → "não", etc.
+# # Dicas de Uso
+# st.sidebar.write("### 💡 Dicas de Uso")
+# with st.sidebar.expander("Como usar"):
+#     st.markdown("""
+#     **🔧 Correção Ortográfica**
+#     - Ative para corrigir automaticamente erros
+#     - "vc" → "você", "nao" → "não", etc.
     
-    **📁 Importar Arquivos**
-    - Formatos: TXT, CSV, PDF, DOCX
-    - CSV: detecta coluna de mensagens
+#     **📁 Importar Arquivos**
+#     - Formatos: TXT, CSV, PDF, DOCX
+#     - CSV: detecta coluna de mensagens
     
-    **🧠 Análise de Sentimento**
-    - Verde = Positivo | Cinza = Neutro | Vermelho = Negativo
-    - Gráfico mostra evolução em tempo real
+#     **🧠 Análise de Sentimento**
+#     - Verde = Positivo | Cinza = Neutro | Vermelho = Negativo
+#     - Gráfico mostra evolução em tempo real
     
-    **☁️ Nuvem de Palavras**
-    - Palavras maiores = mais frequentes
+#     **☁️ Nuvem de Palavras**
+#     - Palavras maiores = mais frequentes
     
-    **🔗 Grafo de Palavras**
-    - Mostra coocorrências (palavras juntas)
-    - Use "Palavra alvo" para focar conexões
+#     **🔗 Grafo de Palavras**
+#     - Mostra coocorrências (palavras juntas)
+#     - Use "Palavra alvo" para focar conexões
     
-    **📊 Relatórios**
-    - TXT: formatado para leitura
-    - JSON: dados estruturados para análise
-    """)
+#     **📊 Relatórios**
+#     - TXT: formatado para leitura
+#     - JSON: dados estruturados para análise
+#     """)
 
-st.sidebar.write("---")
+# st.sidebar.write("---")
 
-# Configurações Avançadas
-st.sidebar.write("### ⚙️ Configurações")
-with st.sidebar.expander("Parâmetros do Sistema"):
-    st.markdown(f"""
-    **Modelo:** `{CONFIG['modelo_padrao']}`
-    - gpt-4o-mini = rápido e econômico
-    - gpt-4o = mais preciso e contextual
+# # Configurações Avançadas
+# st.sidebar.write("### ⚙️ Configurações")
+# with st.sidebar.expander("Parâmetros do Sistema"):
+#     st.markdown(f"""
+#     **Modelo:** `{CONFIG['modelo_padrao']}`
+#     - gpt-4o-mini = rápido e econômico
+#     - gpt-4o = mais preciso e contextual
     
-    **Temperatura:** `{CONFIG['temperatura_padrao']}`
-    - Controla criatividade (0.0 a 1.0)
+#     **Temperatura:** `{CONFIG['temperatura_padrao']}`
+#     - Controla criatividade (0.0 a 1.0)
     
-    **Contexto:** `{CONFIG['max_contexto_mensagens']}` mensagens
-    - Quantas mensagens são enviadas à API
+#     **Contexto:** `{CONFIG['max_contexto_mensagens']}` mensagens
+#     - Quantas mensagens são enviadas à API
     
-    **Correção Ortográfica:**
-    - Dicionário: {len(CORREÇÕES_ORTOGRÁFICAS)} correções
-    - Processamento local (sem API)
+#     **Correção Ortográfica:**
+#     - Dicionário: {len(CORREÇÕES_ORTOGRÁFICAS)} correções
+#     - Processamento local (sem API)
     
-    **Formatos Suportados:**
-    - TXT: texto puro (UTF-8 ou Latin-1)
-    - CSV: colunas automáticas
-    - PDF: extração de texto (PyPDF2)
-    - DOCX: parágrafos do Word
-    """)
+#     **Formatos Suportados:**
+#     - TXT: texto puro (UTF-8 ou Latin-1)
+#     - CSV: colunas automáticas
+#     - PDF: extração de texto (PyPDF2)
+#     - DOCX: parágrafos do Word
+#     """)
 
-st.sidebar.write("---")
+# st.sidebar.write("---")
 
-# Dependências e Instalação
-st.sidebar.write("### 🔧 Instalação")
-with st.sidebar.expander("Dependências"):
-    st.markdown("""
-    **Obrigatórios:**
-    ```
-    pip install streamlit openai python-dotenv
-    ```
+# # Dependências e Instalação
+# st.sidebar.write("### 🔧 Instalação")
+# with st.sidebar.expander("Dependências"):
+#     st.markdown("""
+#     **Obrigatórios:**
+#     ```
+#     pip install streamlit openai python-dotenv
+#     ```
     
-    **Opcionais:**
-    ```
-    pip install wordcloud networkx pyvis
-    pip install pandas PyPDF2 python-docx
-    ```
+#     **Opcionais:**
+#     ```
+#     pip install wordcloud networkx pyvis
+#     pip install pandas PyPDF2 python-docx
+#     ```
     
-    **Arquivo .env:**
-    ```
-    OPENAI_API_KEY=sk-sua-chave-aqui
-    ```
+#     **Arquivo .env:**
+#     ```
+#     OPENAI_API_KEY=sk-sua-chave-aqui
+#     ```
     
-    **Executar:**
-    ```
-    streamlit run app.py
-    ```
-    """)
+#     **Executar:**
+#     ```
+#     streamlit run app.py
+#     ```
+#     """)
 
 st.sidebar.write("---")
 
