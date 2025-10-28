@@ -704,11 +704,11 @@ with st.sidebar.container():
             st.line_chart(
                 df_sent.set_index('Mensagem'),
                 height=180,
-                use_column_width=True
+               use_container_width=True
             )
         else:
             # Fallback sem pandas
-            st.line_chart(_scores, height=180, use_column_width=True)
+            st.line_chart(_scores, height=180,use_container_width=True)
         
         _last = _hist[-1]
         
@@ -736,7 +736,7 @@ wc_container = st.sidebar.container()
 
 col_wc1, col_wc2 = st.sidebar.columns(2)
 with col_wc1:
-    if st.button("🗑️ Limpar nuvem", use_column_width=True):
+    if st.button("🗑️ Limpar nuvem",use_container_width=True):
         st.session_state["user_corpus_text"] = ""
         st.session_state["user_token_sequences"] = []
         st.rerun()
@@ -783,7 +783,7 @@ with tab_sessao:
     col_save, col_load = st.columns(2)
     
     with col_save:
-        if st.button("💾 Salvar", use_column_width=True, key="save_session"):
+        if st.button("💾 Salvar",use_container_width=True, key="save_session"):
             filename = salvar_sessao()
             if filename:
                 st.success(f"✅ {filename}")
@@ -847,7 +847,7 @@ with tab_importar:
                     col_a1, col_a2 = st.columns(2)
                     
                     with col_a1:
-                        if st.button("➕ Adicionar", use_column_width=True, key="add_file"):
+                        if st.button("➕ Adicionar",use_container_width=True, key="add_file"):
                             # Adiciona ao corpus
                             st.session_state["user_corpus_text"] += " " + " ".join(resultado["tokens"])
                             st.session_state["user_token_sequences"].append(resultado["tokens"])
@@ -867,7 +867,7 @@ with tab_importar:
                             st.rerun()
                     
                     with col_a2:
-                        if st.button("📊 Ver", use_column_width=True, key="view_report"):
+                        if st.button("📊 Ver",use_container_width=True, key="view_report"):
                             st.session_state["mostrar_relatorio_arquivo"] = True
                             st.rerun()
 
@@ -878,7 +878,7 @@ st.sidebar.write("### 🛠️ Ações")
 
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    if st.button("🗑️ Limpar chat", use_column_width=True):
+    if st.button("🗑️ Limpar chat",use_container_width=True):
         st.session_state["lista_mensagens"] = []
         st.session_state["sentimento_atual"] = None
         st.session_state["user_corpus_text"] = ""
@@ -887,7 +887,7 @@ with col1:
         st.rerun()
 
 with col2:
-    if st.button("🔄 Recarregar", use_column_width=True):
+    if st.button("🔄 Recarregar",use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
@@ -1080,14 +1080,14 @@ with wc_container:
         if err:
             st.warning(err)
         elif buf:
-            st.image(buf, caption="Nuvem de Palavras (Corrigidas)", use_column_width=True)
+            st.image(buf, caption="Nuvem de Palavras (Corrigidas)",use_container_width=True)
             
             st.download_button(
                 "📥 Baixar PNG",
                 data=buf,
                 file_name=f"wordcloud_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
                 mime="image/png",
-                use_column_width=True,
+               use_container_width=True,
             )
             
             tokens_unicos = len(set(corpus.split()))
@@ -1168,7 +1168,7 @@ with graph_container:
                     col_g1, col_g2 = st.sidebar.columns(2)
                     
                     with col_g1:
-                        if st.button("📱 Expandir", use_column_width=True, key="expand_graph"):
+                        if st.button("📱 Expandir",use_container_width=True, key="expand_graph"):
                             st.session_state["grafo_expand_main"] = True
                             st.rerun()
                     
@@ -1178,7 +1178,7 @@ with graph_container:
                             data=html,
                             file_name=f"grafo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
                             mime="text/html",
-                            use_column_width=True,
+                           use_container_width=True,
                         )
 
 
@@ -1195,7 +1195,7 @@ if st.session_state.get("grafo_expand_main") and st.session_state.get("grafo_htm
     col_exp1, col_exp2, col_exp3 = st.columns(3)
     
     with col_exp1:
-        if st.button("↩️ Recolher", use_column_width=True):
+        if st.button("↩️ Recolher",use_container_width=True):
             st.session_state["grafo_expand_main"] = False
             st.rerun()
     
@@ -1205,7 +1205,7 @@ if st.session_state.get("grafo_expand_main") and st.session_state.get("grafo_htm
             data=st.session_state["grafo_html"],
             file_name=f"grafo_expandido_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
             mime="text/html",
-            use_column_width=True,
+           use_container_width=True,
         )
     
     with col_exp3:
@@ -1257,7 +1257,7 @@ if st.session_state.get("mostrar_relatorio_arquivo") and st.session_state.get("a
             df_palavras = pd.DataFrame(palavras_freq, columns=["Palavra", "Frequência"])
             
             st.bar_chart(df_palavras.set_index("Palavra"))
-            st.dataframe(df_palavras, use_column_width=True)
+            st.dataframe(df_palavras,use_container_width=True)
         else:
             for palavra, freq in stats["top_palavras"]:
                 st.write(f"**{palavra}**: {freq} vezes")
@@ -1291,7 +1291,7 @@ if st.session_state.get("mostrar_relatorio_arquivo") and st.session_state.get("a
         if err:
             st.warning(err)
         elif buf:
-            st.image(buf, use_column_width=True)
+            st.image(buf,use_container_width=True)
             
             st.download_button(
                 "📥 Baixar WordCloud",
@@ -1339,7 +1339,7 @@ st.subheader("📊 Exportar Relatório de Análise")
 col_report1, col_report2 = st.columns(2)
 
 with col_report1:
-    if st.button("📄 Gerar Relatório TXT", use_column_width=True):
+    if st.button("📄 Gerar Relatório TXT",use_container_width=True):
         relatorio = f"""
 ═══════════════════════════════════════════════════════════════
 RELATÓRIO DE ANÁLISE DE CONVERSAS
@@ -1417,11 +1417,11 @@ HISTÓRICO DE MENSAGENS
             data=relatorio,
             file_name=f"relatorio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain",
-            use_column_width=True,
+           use_container_width=True,
         )
 
 with col_report2:
-    if st.button("📊 Gerar Relatório JSON", use_column_width=True):
+    if st.button("📊 Gerar Relatório JSON",use_container_width=True):
         relatorio_json = {
             "metadata": {
                 "data_geracao": datetime.now().isoformat(),
@@ -1451,7 +1451,7 @@ with col_report2:
             data=json_str,
             file_name=f"relatorio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json",
-            use_column_width=True,
+           use_container_width=True,
         )
 
 
