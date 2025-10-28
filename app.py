@@ -711,7 +711,16 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+# Logo após st.set_page_config
+# st.set_page_config(...)
 
+# ADICIONAR AQUI:
+# Limpa cache na inicialização
+if "cache_cleared" not in st.session_state:
+    st.cache_data.clear()
+    st.session_state["cache_cleared"] = True
+    
+    
 st.title("🧑‍💬 Analisador de Sentimentos")
 st.write("---")
 st.caption("• 🧠 Sentimento  • ☁️ WordCloud  • 🔗 Relação de Palavras  • ✏️ Correção Automática")
@@ -909,6 +918,47 @@ st.caption(
 # ═══════════════════════════════════════════════════════════════
 
 st.sidebar.title("⚙️ PAINEL DE CONTROLE")
+
+# Na sidebar, adicione uma seção de debug
+st.sidebar.write("---")
+st.sidebar.write("### 🔍 Status do Sistema")
+
+# Testa PostgreSQL
+try:
+    from database import Database, DATABASE_AVAILABLE
+    
+    if DATABASE_AVAILABLE:
+        st.sidebar.success("✅ PostgreSQL conectado")
+        
+        # Testa escrita
+        if st.sidebar.button("🧪 Testar DB"):
+            try:
+                msg = Database.add_message(
+                    session_id="test_system",
+                    role="system",
+                    content="Teste de conexão PostgreSQL",
+                    metadata={"source": "streamlit_test"}
+                )
+                st.sidebar.success(f"✅ Teste OK! ID: {msg.get('id')}")
+                
+                # Busca mensagens de teste
+                msgs = Database.get_messages("test_system", limit=5)
+                st.sidebar.caption(f"📊 {len(msgs)} mensagens de teste")
+                
+            except Exception as e:
+                st.sidebar.error(f"❌ Erro no teste: {e}")
+    else:
+        st.sidebar.warning("⚠️ PostgreSQL indisponível")
+        
+except Exception as e:
+    st.sidebar.error(f"❌ Erro ao importar Database: {e}")
+
+# Testa SharedState
+try:
+    sessions = SharedState.list_sessions()
+    st.sidebar.caption(f"📂 Sessões ativas: {len(sessions)}")
+except Exception as e:
+    st.sidebar.error(f"❌ SharedState: {e}")
 
 # Correção Ortográfica
 st.sidebar.write("### ✏️ Correção Ortográfica")
