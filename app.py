@@ -725,9 +725,6 @@ if st.sidebar.button("🧪 Testar PostgreSQL"):
         
     except Exception as e:
         st.sidebar.error(f"Erro: {e}")
-```
-
----
 
 # ## ✅ **CHECKLIST FINAL**
 
