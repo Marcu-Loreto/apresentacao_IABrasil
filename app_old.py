@@ -772,106 +772,106 @@ with graph_container:
 
 st.sidebar.write("---")
 
-# Gerenciar Dados - NOVO COM TABS
-st.sidebar.write("### 💾 Gerenciar Dados")
+# # Gerenciar Dados - NOVO COM TABS
+# st.sidebar.write("### 💾 Gerenciar Dados")
 
-tab_sessao, tab_importar = st.sidebar.tabs(["💾 Sessão", "📁 Importar"])
+# tab_sessao, tab_importar = st.sidebar.tabs(["💾 Sessão", "📁 Importar"])
 
-with tab_sessao:
-    st.caption("Salve/carregue conversas do sistema")
+# with tab_sessao:
+#     st.caption("Salve/carregue conversas do sistema")
     
-    col_save, col_load = st.columns(2)
+#     col_save, col_load = st.columns(2)
     
-    with col_save:
-        if st.button("💾 Salvar",use_container_width=True, key="save_session"):
-            filename = salvar_sessao()
-            if filename:
-                st.success(f"✅ {filename}")
+#     with col_save:
+#         if st.button("💾 Salvar",use_container_width=True, key="save_session"):
+#             filename = salvar_sessao()
+#             if filename:
+#                 st.success(f"✅ {filename}")
     
-    with col_load:
-        uploaded_session = st.file_uploader(
-            "Carregar sessão",
-            type=["pkl"],
-            label_visibility="collapsed",
-            key="upload_session"
-        )
-        if uploaded_session:
-            if carregar_sessao(uploaded_session):
-                st.success("✅ Carregada!")
-                st.rerun()
+#     with col_load:
+#         uploaded_session = st.file_uploader(
+#             "Carregar sessão",
+#             type=["pkl"],
+#             label_visibility="collapsed",
+#             key="upload_session"
+#         )
+#         if uploaded_session:
+#             if carregar_sessao(uploaded_session):
+#                 st.success("✅ Carregada!")
+#                 st.rerun()
 
-with tab_importar:
-    st.caption("Analise arquivos externos")
+# with tab_importar:
+#     st.caption("Analise arquivos externos")
     
-    uploaded_file = st.file_uploader(
-        "Upload de arquivo",
-        type=["txt", "csv", "pdf", "docx"],
-        help="Formatos: TXT, CSV, PDF, DOCX",
-        label_visibility="collapsed",
-        key="upload_file"
-    )
+#     uploaded_file = st.file_uploader(
+#         "Upload de arquivo",
+#         type=["txt", "csv", "pdf", "docx"],
+#         help="Formatos: TXT, CSV, PDF, DOCX",
+#         label_visibility="collapsed",
+#         key="upload_file"
+#     )
     
-    if uploaded_file:
-        file_ext = uploaded_file.name.split('.')[-1].lower()
+#     if uploaded_file:
+#         file_ext = uploaded_file.name.split('.')[-1].lower()
         
-        with st.spinner(f"📄 Processando {file_ext.upper()}..."):
-            # Processa conforme extensão
-            if file_ext == 'txt':
-                texto, erro = processar_txt(uploaded_file)
-            elif file_ext == 'csv':
-                texto, erro = processar_csv(uploaded_file)
-            elif file_ext == 'docx':
-                texto, erro = processar_docx(uploaded_file)
-            elif file_ext == 'pdf':
-                texto, erro = processar_pdf(uploaded_file)
-            else:
-                texto, erro = None, "Formato não suportado"
+#         with st.spinner(f"📄 Processando {file_ext.upper()}..."):
+#             # Processa conforme extensão
+#             if file_ext == 'txt':
+#                 texto, erro = processar_txt(uploaded_file)
+#             elif file_ext == 'csv':
+#                 texto, erro = processar_csv(uploaded_file)
+#             elif file_ext == 'docx':
+#                 texto, erro = processar_docx(uploaded_file)
+#             elif file_ext == 'pdf':
+#                 texto, erro = processar_pdf(uploaded_file)
+#             else:
+#                 texto, erro = None, "Formato não suportado"
             
-            if erro:
-                st.error(f"❌ {erro}")
-            elif texto:
-                # Analisa o arquivo
-                resultado, erro_analise = analisar_arquivo_importado(texto)
+#             if erro:
+#                 st.error(f"❌ {erro}")
+#             elif texto:
+#                 # Analisa o arquivo
+#                 resultado, erro_analise = analisar_arquivo_importado(texto)
                 
-                if erro_analise:
-                    st.error(f"❌ {erro_analise}")
-                else:
-                    st.success(f"✅ Arquivo processado!")
+#                 if erro_analise:
+#                     st.error(f"❌ {erro_analise}")
+#                 else:
+#                     st.success(f"✅ Arquivo processado!")
                     
-                    # Salva resultado
-                    st.session_state["arquivo_importado"] = resultado
+#                     # Salva resultado
+#                     st.session_state["arquivo_importado"] = resultado
                     
-                    # Opções
-                    st.write("**Ações:**")
+#                     # Opções
+#                     st.write("**Ações:**")
                     
-                    col_a1, col_a2 = st.columns(2)
+#                     col_a1, col_a2 = st.columns(2)
                     
-                    with col_a1:
-                        if st.button("➕ Adicionar",use_container_width=True, key="add_file"):
-                            # Adiciona ao corpus
-                            st.session_state["user_corpus_text"] += " " + " ".join(resultado["tokens"])
-                            st.session_state["user_token_sequences"].append(resultado["tokens"])
+#                     with col_a1:
+#                         if st.button("➕ Adicionar",use_container_width=True, key="add_file"):
+#                             # Adiciona ao corpus
+#                             st.session_state["user_corpus_text"] += " " + " ".join(resultado["tokens"])
+#                             st.session_state["user_token_sequences"].append(resultado["tokens"])
                             
-                            # Adiciona sentimentos
-                            for sent_data in resultado["sentimentos"]:
-                                sent = sent_data["sentimento"]
-                                st.session_state["sentiment_history"].append({
-                                    "idx": len(st.session_state["sentiment_history"]) + 1,
-                                    "label": sent["label"],
-                                    "confidence": sent["confidence"],
-                                    "score": _score_from_label(sent["label"], sent["confidence"])
-                                })
+#                             # Adiciona sentimentos
+#                             for sent_data in resultado["sentimentos"]:
+#                                 sent = sent_data["sentimento"]
+#                                 st.session_state["sentiment_history"].append({
+#                                     "idx": len(st.session_state["sentiment_history"]) + 1,
+#                                     "label": sent["label"],
+#                                     "confidence": sent["confidence"],
+#                                     "score": _score_from_label(sent["label"], sent["confidence"])
+#                                 })
                             
-                            st.success("✅ Integrado!")
-                            time.sleep(1)
-                            st.rerun()
+#                             st.success("✅ Integrado!")
+#                             time.sleep(1)
+#                             st.rerun()
                     
-                    with col_a2:
-                        if st.button("📊 Ver",use_container_width=True, key="view_report"):
-                            st.session_state["mostrar_relatorio_arquivo"] = True
-                            st.rerun()
+#                     with col_a2:
+#                         if st.button("📊 Ver",use_container_width=True, key="view_report"):
+#                             st.session_state["mostrar_relatorio_arquivo"] = True
+#                             st.rerun()
 
-st.sidebar.write("---")
+# st.sidebar.write("---")
 
 # Ações
 st.sidebar.write("### 🛠️ Ações")
