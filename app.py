@@ -648,28 +648,36 @@ def sincronizar_mensagens_api(session_id: str = "default"):
     Sincroniza mensagens recebidas via API com o Streamlit
     """
     try:
-        # Obtém mensagens da API
+        # Obtém mensagens do PostgreSQL
         mensagens_api = SharedState.get_messages(session_id)
+        
+        if not mensagens_api:
+            return 0
+        
         mensagens_atuais = st.session_state.get("lista_mensagens", [])
         
-        # Identifica novas mensagens
-        ids_atuais = set(
-            f"{m.get('timestamp', '')}{m.get('content', '')}"
-            for m in mensagens_atuais
-        )
+        # Identifica novas mensagens usando timestamp + conteúdo como ID único
+        ids_atuais = set()
+        for m in mensagens_atuais:
+            msg_id = f"{m.get('timestamp', '')}{m.get('content', '')}"
+            ids_atuais.add(msg_id)
         
         novas_mensagens = []
         for msg_api in mensagens_api:
+            # Cria ID único
             msg_id = f"{msg_api.get('timestamp', '')}{msg_api.get('content', '')}"
+            
+            # Só adiciona se for nova E for do usuário
             if msg_id not in ids_atuais and msg_api.get("role") == "user":
                 novas_mensagens.append(msg_api)
         
-        # Adiciona novas mensagens ao Streamlit
+        # Processa novas mensagens
         for msg in novas_mensagens:
-            # Processa com correção ortográfica
-            texto_corrigido = corrigir_texto(msg["content"]) if CONFIG.get("correcao_ortografica") else msg["content"]
+            # Aplica correção ortográfica se habilitada
+            texto_original = msg["content"]
+            texto_corrigido = corrigir_texto(texto_original) if CONFIG.get("correcao_ortografica") else texto_original
             
-            # Adiciona ao histórico
+            # Adiciona ao histórico do Streamlit
             st.session_state["lista_mensagens"].append({
                 "role": "user",
                 "content": texto_corrigido,
@@ -677,32 +685,39 @@ def sincronizar_mensagens_api(session_id: str = "default"):
                 "metadata": msg.get("metadata", {})
             })
             
-            # Tokeniza
+            # Tokeniza para WordCloud e Grafo
             tokens = tokenize_pt(texto_corrigido, corrigir=False)
             if tokens:
                 st.session_state["user_corpus_text"] += " " + " ".join(tokens)
                 st.session_state["user_token_sequences"].append(tokens)
             
-            # Analisa sentimento
+            # Analisa sentimento se habilitado
             if CONFIG.get("sentimento_habilitado"):
-                resultado_sentimento = analisar_sentimento(texto_corrigido, CONFIG["modelo_sentimento"])
-                st.session_state["sentiment_history"].append({
-                    "idx": len(st.session_state["sentiment_history"]) + 1,
-                    "label": resultado_sentimento.get("label", "neutro"),
-                    "confidence": float(resultado_sentimento.get("confidence", 0.0)),
-                    "score": _score_from_label(
-                        resultado_sentimento.get("label", "neutro"),
-                        float(resultado_sentimento.get("confidence", 0.0))
+                try:
+                    resultado_sentimento = analisar_sentimento(
+                        texto_corrigido, 
+                        CONFIG["modelo_sentimento"]
                     )
-                })
+                    
+                    st.session_state["sentiment_history"].append({
+                        "idx": len(st.session_state["sentiment_history"]) + 1,
+                        "label": resultado_sentimento.get("label", "neutro"),
+                        "confidence": float(resultado_sentimento.get("confidence", 0.0)),
+                        "score": _score_from_label(
+                            resultado_sentimento.get("label", "neutro"),
+                            float(resultado_sentimento.get("confidence", 0.0))
+                        )
+                    })
+                except Exception as e:
+                    print(f"⚠️ Erro ao analisar sentimento: {e}")
         
         return len(novas_mensagens)
         
     except Exception as e:
-        st.error(f"Erro ao sincronizar: {e}")
+        st.error(f"❌ Erro ao sincronizar: {e}")
+        import traceback
+        traceback.print_exc()
         return 0
-    
-    
     
     
 # ═══════════════════════════════════════════════════════════════
@@ -993,91 +1008,173 @@ sent_container.caption("Última mensagem do usuário")
 # SIDEBAR: SINCRONIZAÇÃO API
 # ═══════════════════════════════════════════════════════════════
 
+
 st.sidebar.write("---")
 st.sidebar.write("### 🔄 Sincronização API")
 
-col_sync1, col_sync2 = st.sidebar.columns(2)
+col_sync1, col_sync2 = st.sidebar.columns([2, 1])
 
 with col_sync1:
     session_id_api = st.text_input(
         "Session ID",
         value="default",
         key="session_id_input",
-        help="ID da sessão para sincronizar com API"
+        help="ID da sessão para sincronizar"
     )
 
 with col_sync2:
-    if st.button("🔄 Sincronizar", use_container_width=True):
+    st.write("")  # Espaçamento
+    st.write("")
+    if st.button("🔄 Sync", use_container_width=True, key="btn_sync"):
         with st.spinner("Sincronizando..."):
-            novas = sincronizar_mensagens_api(session_id_api)
-            if novas > 0:
-                st.success(f"✅ {novas} nova(s) mensagem(ns)")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.info("Nenhuma mensagem nova")
+            try:
+                novas = sincronizar_mensagens_api(session_id_api)
+                if novas > 0:
+                    st.success(f"✅ {novas} nova(s)")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.info("Nenhuma nova")
+            except Exception as e:
+                st.error(f"❌ {e}")
 
-# Auto-sincronização (opcional)
+# Auto-sincronização
 auto_sync = st.sidebar.toggle(
-    "Auto-sync (5s)", 
-    value=False, 
-    help="Sincroniza automaticamente a cada 5 segundos"
+    "Auto-sync (10s)", 
+    value=False,
+    key="auto_sync_toggle",
+    help="Sincroniza automaticamente a cada 10 segundos"
 )
 
 if auto_sync:
-    if "last_sync" not in st.session_state:
-        st.session_state["last_sync"] = time.time()
+    # Inicializa timestamp
+    if "last_sync_time" not in st.session_state:
+        st.session_state["last_sync_time"] = time.time()
     
-    if time.time() - st.session_state["last_sync"] > 5:
-        novas = sincronizar_mensagens_api(session_id_api)
-        st.session_state["last_sync"] = time.time()
-        if novas > 0:
-            st.rerun()
-
-st.sidebar.caption(f"📡 Session ID atual: `{session_id_api}`")
-st.sidebar.write("---")
-
-# Evolução do Sentimento - GRÁFICO MELHORADO
-st.sidebar.write("### 📈 Evolução do Sentimento")
-with st.sidebar.container():
-    _hist = st.session_state.get("sentiment_history", [])
-    if _hist:
-        _scores = [h.get("score", 0.0) for h in _hist]
-        
-        # Cria DataFrame para melhor controle do gráfico
-        if _PANDAS_AVAILABLE:
-            df_sent = pd.DataFrame({
-                'Mensagem': range(1, len(_scores) + 1),
-                'Score': _scores
-            })
+    # Verifica se passou 10 segundos
+    tempo_decorrido = time.time() - st.session_state["last_sync_time"]
+    
+    if tempo_decorrido >= 10:
+        try:
+            novas = sincronizar_mensagens_api(session_id_api)
+            st.session_state["last_sync_time"] = time.time()
             
-            # Gráfico de linha com espaçamento reduzido
-            st.line_chart(
-                df_sent.set_index('Mensagem'),
-                height=180,
-               use_container_width=True
-            )
-        else:
-            # Fallback sem pandas
-            st.line_chart(_scores, height=180,use_container_width=True)
+            if novas > 0:
+                st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"Erro auto-sync: {e}")
+    
+    # Mostra countdown
+    proximo_sync = 10 - int(tempo_decorrido)
+    st.sidebar.caption(f"⏱️ Próximo sync em: {proximo_sync}s")
+
+# Mostra info da sessão atual
+st.sidebar.caption(f"📡 Session: `{session_id_api}`")
+
+# Botão de debug
+if st.sidebar.button("🔍 Debug", key="btn_debug"):
+    try:
+        from database import Database
         
-        _last = _hist[-1]
+        msgs_db = Database.get_messages(session_id_api)
+        st.sidebar.write(f"**DB:** {len(msgs_db)} mensagens")
         
-        # Estatísticas resumidas
-        col_s1, col_s2 = st.sidebar.columns(2)
-        with col_s1:
-            st.caption(f"**Total:** {len(_scores)}")
-        with col_s2:
-            st.caption(f"**Último:** {_last.get('label', '?')}")
+        msgs_state = st.session_state.get("lista_mensagens", [])
+        st.sidebar.write(f"**Streamlit:** {len(msgs_state)} mensagens")
         
-        # Média e tendência
-        media_score = sum(_scores) / len(_scores)
-        tendencia = "↗️" if len(_scores) > 1 and _scores[-1] > _scores[-2] else "↘️" if len(_scores) > 1 and _scores[-1] < _scores[-2] else "→"
+        if msgs_db:
+            st.sidebar.write("**Últimas 3 no DB:**")
+            for msg in msgs_db[-3:]:
+                st.sidebar.caption(f"• {msg['role']}: {msg['content'][:30]}...")
         
-        st.sidebar.caption(f"**Média:** {media_score:.2f} {tendencia}")
+    except Exception as e:
+        st.sidebar.error(f"Erro: {e}")
+
+# st.sidebar.write("---")
+# st.sidebar.write("### 🔄 Sincronização API")
+
+# col_sync1, col_sync2 = st.sidebar.columns(2)
+
+# with col_sync1:
+#     session_id_api = st.text_input(
+#         "Session ID",
+#         value="default",
+#         key="session_id_input",
+#         help="ID da sessão para sincronizar com API"
+#     )
+
+# with col_sync2:
+#     if st.button("🔄 Sincronizar", use_container_width=True):
+#         with st.spinner("Sincronizando..."):
+#             novas = sincronizar_mensagens_api(session_id_api)
+#             if novas > 0:
+#                 st.success(f"✅ {novas} nova(s) mensagem(ns)")
+#                 time.sleep(1)
+#                 st.rerun()
+#             else:
+#                 st.info("Nenhuma mensagem nova")
+
+# # Auto-sincronização (opcional)
+# auto_sync = st.sidebar.toggle(
+#     "Auto-sync (5s)", 
+#     value=False, 
+#     help="Sincroniza automaticamente a cada 5 segundos"
+# )
+
+# if auto_sync:
+#     if "last_sync" not in st.session_state:
+#         st.session_state["last_sync"] = time.time()
+    
+#     if time.time() - st.session_state["last_sync"] > 5:
+#         novas = sincronizar_mensagens_api(session_id_api)
+#         st.session_state["last_sync"] = time.time()
+#         if novas > 0:
+#             st.rerun()
+
+# st.sidebar.caption(f"📡 Session ID atual: `{session_id_api}`")
+# st.sidebar.write("---")
+
+# # Evolução do Sentimento - GRÁFICO MELHORADO
+# st.sidebar.write("### 📈 Evolução do Sentimento")
+# with st.sidebar.container():
+#     _hist = st.session_state.get("sentiment_history", [])
+#     if _hist:
+#         _scores = [h.get("score", 0.0) for h in _hist]
         
-    else:
-        st.info("Envie uma mensagem para ver o gráfico.")
+#         # Cria DataFrame para melhor controle do gráfico
+#         if _PANDAS_AVAILABLE:
+#             df_sent = pd.DataFrame({
+#                 'Mensagem': range(1, len(_scores) + 1),
+#                 'Score': _scores
+#             })
+            
+#             # Gráfico de linha com espaçamento reduzido
+#             st.line_chart(
+#                 df_sent.set_index('Mensagem'),
+#                 height=180,
+#                use_container_width=True
+#             )
+#         else:
+#             # Fallback sem pandas
+#             st.line_chart(_scores, height=180,use_container_width=True)
+        
+#         _last = _hist[-1]
+        
+#         # Estatísticas resumidas
+#         col_s1, col_s2 = st.sidebar.columns(2)
+#         with col_s1:
+#             st.caption(f"**Total:** {len(_scores)}")
+#         with col_s2:
+#             st.caption(f"**Último:** {_last.get('label', '?')}")
+        
+#         # Média e tendência
+#         media_score = sum(_scores) / len(_scores)
+#         tendencia = "↗️" if len(_scores) > 1 and _scores[-1] > _scores[-2] else "↘️" if len(_scores) > 1 and _scores[-1] < _scores[-2] else "→"
+        
+#         st.sidebar.caption(f"**Média:** {media_score:.2f} {tendencia}")
+        
+#     else:
+#         st.info("Envie uma mensagem para ver o gráfico.")
 
 st.sidebar.write("---")
 
