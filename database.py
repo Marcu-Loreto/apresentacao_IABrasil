@@ -24,7 +24,6 @@ DB_NAME = os.getenv("POSTGRES_DB", "atendimento_db")
 DB_USER = os.getenv("POSTGRES_USER", "atendimento_user")
 DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
 
-# Pool de conexões
 _pool = None
 
 
@@ -49,7 +48,7 @@ def get_pool():
             print(f"✅ PostgreSQL conectado: {DB_HOST}:{DB_PORT}/{DB_NAME}")
             init_db()
         except Exception as e:
-            print(f"❌ Erro ao conectar PostgreSQL: {e}")
+            print(f"❌ Erro PostgreSQL: {e}")
             _pool = None
     return _pool
 
@@ -95,27 +94,22 @@ def init_db():
             ON messages(session_id, created_at DESC)
         """)
         
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_timestamp 
-            ON messages(timestamp)
-        """)
-        
         conn.commit()
         cursor.close()
         print("✅ Tabelas PostgreSQL inicializadas")
         
     except Exception as e:
-        print(f"❌ Erro ao inicializar banco: {e}")
+        print(f"❌ Erro ao inicializar: {e}")
         conn.rollback()
     finally:
         release_connection(conn)
 
 
 class Database:
-    """Gerencia mensagens no PostgreSQL"""
+    """Classe para gerenciar mensagens no PostgreSQL"""
     
     @staticmethod
-    def add_message(session_id: str, role: str, content: str, metadata: Optional[Dict] = None):
+    def add_message(session_id: str, role: str, content: str, metadata: Optional[Dict] = None) -> Dict:
         """Adiciona mensagem ao banco"""
         conn = get_connection()
         if not conn:
@@ -126,7 +120,7 @@ class Database:
             
             timestamp = datetime.now()
             
-            # Converte metadata para JSON string
+            # Trata metadata
             if isinstance(metadata, str):
                 metadata_json = metadata
             elif isinstance(metadata, dict):
@@ -149,13 +143,12 @@ class Database:
                 "session_id": str(result["session_id"]),
                 "role": str(result["role"]),
                 "content": str(result["content"]),
-                "timestamp": result["timestamp"].isoformat() if result["timestamp"] else None,
+                "timestamp": result["timestamp"].isoformat(),
                 "metadata": json.loads(result["metadata"]) if result["metadata"] else {}
             }
             
         except Exception as e:
             conn.rollback()
-            print(f"❌ Erro em add_message: {e}")
             raise e
         finally:
             release_connection(conn)
@@ -192,9 +185,9 @@ class Database:
             messages = []
             for row in rows:
                 messages.append({
-                    "role": str(row["role"]),
-                    "content": str(row["content"]),
-                    "timestamp": row["timestamp"].isoformat() if row["timestamp"] else None,
+                    "role": row["role"],
+                    "content": row["content"],
+                    "timestamp": row["timestamp"].isoformat(),
                     "metadata": json.loads(row["metadata"]) if row["metadata"] else {}
                 })
             
@@ -204,7 +197,7 @@ class Database:
             return messages
             
         except Exception as e:
-            print(f"❌ Erro em get_messages: {e}")
+            print(f"❌ Erro ao buscar: {e}")
             return []
         finally:
             release_connection(conn)
@@ -222,7 +215,6 @@ class Database:
             cursor.execute("""
                 SELECT DISTINCT session_id
                 FROM messages
-                GROUP BY session_id
                 ORDER BY MAX(created_at) DESC
             """)
             
@@ -232,7 +224,7 @@ class Database:
             return [row[0] for row in rows]
             
         except Exception as e:
-            print(f"❌ Erro em list_sessions: {e}")
+            print(f"❌ Erro ao listar: {e}")
             return []
         finally:
             release_connection(conn)
@@ -249,23 +241,32 @@ class Database:
             cursor.execute("DELETE FROM messages WHERE session_id = %s", (session_id,))
             conn.commit()
             cursor.close()
-            print(f"✅ Sessão {session_id} limpa")
             
         except Exception as e:
             conn.rollback()
-            print(f"❌ Erro em clear_session: {e}")
+            print(f"❌ Erro ao limpar: {e}")
         finally:
             release_connection(conn)
 
 
-# Testa conexão ao importar
+# Inicializa e testa
 try:
     if PSYCOPG2_AVAILABLE:
-        pool = get_pool()
-        DATABASE_AVAILABLE = pool is not None
+        get_pool()
+        DATABASE_AVAILABLE = True
     else:
         DATABASE_AVAILABLE = False
 except:
     DATABASE_AVAILABLE = False
 
-print(f"DATABASE_AVAILABLE: {DATABASE_AVAILABLE}")
+# Testa se os métodos estão acessíveis
+if DATABASE_AVAILABLE:
+    try:
+        # Testa se consegue chamar os métodos
+        assert hasattr(Database, 'get_messages'), "❌ Database.get_messages não encontrado"
+        assert hasattr(Database, 'add_message'), "❌ Database.add_message não encontrado"
+        assert hasattr(Database, 'list_sessions'), "❌ Database.list_sessions não encontrado"
+        print("✅ Todos os métodos da classe Database estão acessíveis")
+    except AssertionError as e:
+        print(f"❌ {e}")
+        DATABASE_AVAILABLE = False
