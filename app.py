@@ -800,7 +800,62 @@ for msg in st.session_state["lista_mensagens"]:
     elif msg["role"] == "assistant":
         st.chat_message("assistant").write(msg["content"])
 
+# ═══════════════════════════════════════════════════════════════
+# ÁREA DE DEBUG (TEMPORÁRIO)
+# ═══════════════════════════════════════════════════════════════
 
+if st.sidebar.checkbox("🔍 Modo Debug", value=False):
+    st.markdown("---")
+    st.markdown("## 🐛 Debug - Estado Interno")
+    
+    col_d1, col_d2, col_d3 = st.columns(3)
+    
+    with col_d1:
+        st.metric(
+            "Mensagens no Streamlit",
+            len(st.session_state.get("lista_mensagens", []))
+        )
+    
+    with col_d2:
+        try:
+            from database import Database
+            session_id = st.session_state.get("session_id_input", "default")
+            msgs_db = Database.get_messages(session_id)
+            st.metric("Mensagens no PostgreSQL", len(msgs_db))
+        except:
+            st.metric("Mensagens no PostgreSQL", "Erro")
+    
+    with col_d3:
+        st.metric(
+            "Tokens WordCloud",
+            len(st.session_state.get("user_corpus_text", "").split())
+        )
+    
+    # Mostra últimas mensagens do banco
+    st.write("### 📊 Últimas mensagens no PostgreSQL:")
+    try:
+        from database import Database
+        session_id = st.session_state.get("session_id_input", "default")
+        msgs_db = Database.get_messages(session_id, limit=5)
+        
+        if msgs_db:
+            for i, msg in enumerate(msgs_db, 1):
+                with st.expander(f"{i}. {msg['role']} - {msg['timestamp'][:19]}"):
+                    st.write(f"**Content:** {msg['content']}")
+                    st.json(msg['metadata'])
+        else:
+            st.info("Nenhuma mensagem no banco para esta sessão")
+    except Exception as e:
+        st.error(f"Erro: {e}")
+    
+    # Mostra mensagens no Streamlit
+    st.write("### 💾 Mensagens no Streamlit:")
+    msgs_streamlit = st.session_state.get("lista_mensagens", [])
+    if msgs_streamlit:
+        for i, msg in enumerate(msgs_streamlit[-5:], 1):
+            st.write(f"{i}. **{msg['role']}**: {msg['content'][:50]}...")
+    else:
+        st.warning("Nenhuma mensagem no Streamlit ainda")
 # SIDEBAR: VISUALIZAÇÕES
 # ═══════════════════════════════════════════════════════════════
 
