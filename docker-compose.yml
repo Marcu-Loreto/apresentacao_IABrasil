@@ -2,35 +2,39 @@
 version: '3.8'
 
 services:
-  # Redis para estado compartilhado
+  # Redis - Estado compartilhado
   redis:
     image: redis:7-alpine
     container_name: atendimento_redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    restart: unless-stopped
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
+    networks:
+      - atendimento_network
 
-  # FastAPI
-  fastapi:
+  # FastAPI - API de mensagens
+  api:
     build:
       context: .
-      dockerfile: Dockerfile.fastapi
+      dockerfile: Dockerfile
     container_name: atendimento_api
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - API_KEY=${API_KEY:-sua-chave-secreta}
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook-secret}
+      - API_KEY=${API_KEY:-change-me-in-production}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
     volumes:
       - ./api.py:/app/api.py
       - ./shared_state.py:/app/shared_state.py
@@ -38,14 +42,21 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    networks:
+      - atendimento_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Streamlit
+  # Streamlit - Interface do usuário
   streamlit:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
     container_name: atendimento_streamlit
+    restart: unless-stopped
     ports:
       - "8502:8502"
     environment:
@@ -60,22 +71,32 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    restart: unless-stopped
+      api:
+        condition: service_healthy
+    networks:
+      - atendimento_network
 
-  # Nginx (reverse proxy)
+  # Nginx - Reverse Proxy (opcional para produção)
   nginx:
     image: nginx:alpine
     container_name: atendimento_nginx
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro  # Para certificados SSL
+      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
-      - fastapi
+      - api
       - streamlit
-    restart: unless-stopped
+    networks:
+      - atendimento_network
 
 volumes:
   redis_data:
+    driver: local
+
+networks:
+  atendimento_network:
+    driver: bridge
