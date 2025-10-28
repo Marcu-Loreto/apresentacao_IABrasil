@@ -872,54 +872,6 @@ sentimento_habilitado = st.sidebar.toggle(
 sent_container = st.sidebar.container()
 sent_container.caption("Última mensagem do usuário")
 
-# ═══════════════════════════════════════════════════════════════
-# SIDEBAR: SINCRONIZAÇÃO API
-# ═══════════════════════════════════════════════════════════════
-
-st.sidebar.write("---")
-st.sidebar.write("### 🔄 Sincronização API")
-
-col_sync1, col_sync2 = st.sidebar.columns(2)
-
-with col_sync1:
-    session_id_api = st.text_input(
-        "Session ID",
-        value="default",
-        key="session_id_input",
-        help="ID da sessão para sincronizar com API"
-    )
-
-with col_sync2:
-    if st.button("🔄 Sincronizar", use_container_width=True):
-        with st.spinner("Sincronizando..."):
-            novas = sincronizar_mensagens_api(session_id_api)
-            if novas > 0:
-                st.success(f"✅ {novas} nova(s) mensagem(ns)")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.info("Nenhuma mensagem nova")
-
-# Auto-sincronização (opcional)
-auto_sync = st.sidebar.toggle(
-    "Auto-sync (5s)", 
-    value=False, 
-    help="Sincroniza automaticamente a cada 5 segundos"
-)
-
-if auto_sync:
-    if "last_sync" not in st.session_state:
-        st.session_state["last_sync"] = time.time()
-    
-    if time.time() - st.session_state["last_sync"] > 5:
-        novas = sincronizar_mensagens_api(session_id_api)
-        st.session_state["last_sync"] = time.time()
-        if novas > 0:
-            st.rerun()
-
-st.sidebar.caption(f"📡 Session ID atual: `{session_id_api}`")
-st.sidebar.write("---")
-
 # Evolução do Sentimento - GRÁFICO MELHORADO
 st.sidebar.write("### 📈 Evolução do Sentimento")
 with st.sidebar.container():
@@ -1129,6 +1081,191 @@ with col_report2:
             key="download_json_sidebar"
         )
 
+st.sidebar.write("---")
+
+# # Gerenciar Dados - NOVO COM TABS
+# st.sidebar.write("### 💾 Gerenciar Dados")
+
+# tab_sessao, tab_importar = st.sidebar.tabs(["💾 Sessão", "📁 Importar"])
+
+# with tab_sessao:
+#     st.caption("Salve/carregue conversas do sistema")
+    
+#     col_save, col_load = st.sidebar.columns(2)
+    
+#     with col_save:
+#         if st.button("💾 Salvar",use_container_width=True, key="save_session"):
+#             filename = salvar_sessao()
+#             if filename:
+#                 st.success(f"✅ {filename}")
+    
+#     with col_load:
+#         uploaded_session = st.file_uploader(
+#             "Carregar sessão",
+#             type=["pkl"],
+#             label_visibility="collapsed",
+#             key="upload_session"
+#         )
+#         if uploaded_session:
+#             if carregar_sessao(uploaded_session):
+#                 st.success("✅ Carregada!")
+#                 st.rerun()
+
+# with tab_importar:
+#     st.caption("Analise arquivos externos")
+    
+#     uploaded_file = st.file_uploader(
+#         "Upload de arquivo",
+#         type=["txt", "csv", "pdf", "docx"],
+#         help="Formatos: TXT, CSV, PDF, DOCX",
+#         label_visibility="collapsed",
+#         key="upload_file"
+#     )
+    
+#     if uploaded_file:
+#         file_ext = uploaded_file.name.split('.')[-1].lower()
+        
+#         with st.spinner(f"📄 Processando {file_ext.upper()}..."):
+#             # Processa conforme extensão
+#             if file_ext == 'txt':
+#                 texto, erro = processar_txt(uploaded_file)
+#             elif file_ext == 'csv':
+#                 texto, erro = processar_csv(uploaded_file)
+#             elif file_ext == 'docx':
+#                 texto, erro = processar_docx(uploaded_file)
+#             elif file_ext == 'pdf':
+#                 texto, erro = processar_pdf(uploaded_file)
+#             else:
+#                 texto, erro = None, "Formato não suportado"
+            
+#             if erro:
+#                 st.error(f"❌ {erro}")
+#             elif texto:
+#                 # Analisa o arquivo
+#                 resultado, erro_analise = analisar_arquivo_importado(texto)
+                
+#                 if erro_analise:
+#                     st.error(f"❌ {erro_analise}")
+#                 else:
+#                     st.success(f"✅ Arquivo processado!")
+                    
+#                     # Salva resultado
+#                     st.session_state["arquivo_importado"] = resultado
+                    
+#                     # Opções
+#                     st.write("**Ações:**")
+                    
+#                     col_a1, col_a2 = st.sidebar.columns(2)
+                    
+#                     with col_a1:
+#                         if st.button("➕ Adicionar",use_container_width=True, key="add_file"):
+#                             # Adiciona ao corpus
+#                             st.session_state["user_corpus_text"] += " " + " ".join(resultado["tokens"])
+#                             st.session_state["user_token_sequences"].append(resultado["tokens"])
+                            
+#                             # Adiciona sentimentos
+#                             for sent_data in resultado["sentimentos"]:
+#                                 sent = sent_data["sentimento"]
+#                                 st.session_state["sentiment_history"].append({
+#                                     "idx": len(st.session_state["sentiment_history"]) + 1,
+#                                     "label": sent["label"],
+#                                     "confidence": sent["confidence"],
+#                                     "score": _score_from_label(sent["label"], sent["confidence"])
+#                                 })
+                            
+#                             st.success("✅ Integrado!")
+#                             time.sleep(1)
+#                             st.rerun()
+                    
+#                     with col_a2:
+#                         if st.button("📊 Ver",use_container_width=True, key="view_report"):
+#                             st.session_state["mostrar_relatorio_arquivo"] = True
+#                             st.rerun()
+
+# st.sidebar.write("---")
+
+# # Dicas de Uso
+# st.sidebar.write("### 💡 Dicas de Uso")
+# with st.sidebar.expander("Como usar"):
+#     st.markdown("""
+#     **🔧 Correção Ortográfica**
+#     - Ative para corrigir automaticamente erros
+#     - "vc" → "você", "nao" → "não", etc.
+    
+#     **📁 Importar Arquivos**
+#     - Formatos: TXT, CSV, PDF, DOCX
+#     - CSV: detecta coluna de mensagens
+    
+#     **🧠 Análise de Sentimento**
+#     - Verde = Positivo | Cinza = Neutro | Vermelho = Negativo
+#     - Gráfico mostra evolução em tempo real
+    
+#     **☁️ Nuvem de Palavras**
+#     - Palavras maiores = mais frequentes
+    
+#     **🔗 Grafo de Palavras**
+#     - Mostra coocorrências (palavras juntas)
+#     - Use "Palavra alvo" para focar conexões
+    
+#     **📊 Relatórios**
+#     - TXT: formatado para leitura
+#     - JSON: dados estruturados para análise
+#     """)
+
+# st.sidebar.write("---")
+
+# # Configurações Avançadas
+# st.sidebar.write("### ⚙️ Configurações")
+# with st.sidebar.expander("Parâmetros do Sistema"):
+#     st.markdown(f"""
+#     **Modelo:** `{CONFIG['modelo_padrao']}`
+#     - gpt-4o-mini = rápido e econômico
+#     - gpt-4o = mais preciso e contextual
+    
+#     **Temperatura:** `{CONFIG['temperatura_padrao']}`
+#     - Controla criatividade (0.0 a 1.0)
+    
+#     **Contexto:** `{CONFIG['max_contexto_mensagens']}` mensagens
+#     - Quantas mensagens são enviadas à API
+    
+#     **Correção Ortográfica:**
+#     - Dicionário: {len(CORREÇÕES_ORTOGRÁFICAS)} correções
+#     - Processamento local (sem API)
+    
+#     **Formatos Suportados:**
+#     - TXT: texto puro (UTF-8 ou Latin-1)
+#     - CSV: colunas automáticas
+#     - PDF: extração de texto (PyPDF2)
+#     - DOCX: parágrafos do Word
+#     """)
+
+# st.sidebar.write("---")
+
+# # Dependências e Instalação
+# st.sidebar.write("### 🔧 Instalação")
+# with st.sidebar.expander("Dependências"):
+#     st.markdown("""
+#     **Obrigatórios:**
+#     ```
+#     pip install streamlit openai python-dotenv
+#     ```
+    
+#     **Opcionais:**
+#     ```
+#     pip install wordcloud networkx pyvis
+#     pip install pandas PyPDF2 python-docx
+#     ```
+    
+#     **Arquivo .env:**
+#     ```
+#     OPENAI_API_KEY=sk-sua-chave-aqui
+#     ```
+    
+#     **Executar:**
+#     ```
+#     streamlit run app.py
+#     ```
+#     """)
 
 st.sidebar.write("---")
 
