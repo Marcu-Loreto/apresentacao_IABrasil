@@ -637,7 +637,68 @@ def carregar_sessao(uploaded_file):
         st.error(f"Erro ao carregar: {e}")
         return False
 
+# ═══════════════════════════════════════════════════════════════
+# SINCRONIZAÇÃO COM API
+# ═══════════════════════════════════════════════════════════════
 
+def sincronizar_mensagens_api(session_id: str = "default"):
+    """
+    Sincroniza mensagens recebidas via API com o Streamlit
+    """
+    try:
+        # Obtém mensagens da API
+        mensagens_api = SharedState.get_messages(session_id)
+        mensagens_atuais = st.session_state.get("lista_mensagens", [])
+        
+        # Identifica novas mensagens
+        ids_atuais = set(
+            f"{m.get('timestamp', '')}{m.get('content', '')}"
+            for m in mensagens_atuais
+        )
+        
+        novas_mensagens = []
+        for msg_api in mensagens_api:
+            msg_id = f"{msg_api.get('timestamp', '')}{msg_api.get('content', '')}"
+            if msg_id not in ids_atuais and msg_api.get("role") == "user":
+                novas_mensagens.append(msg_api)
+        
+        # Adiciona novas mensagens ao Streamlit
+        for msg in novas_mensagens:
+            # Processa com correção ortográfica
+            texto_corrigido = corrigir_texto(msg["content"]) if CONFIG.get("correcao_ortografica") else msg["content"]
+            
+            # Adiciona ao histórico
+            st.session_state["lista_mensagens"].append({
+                "role": "user",
+                "content": texto_corrigido,
+                "timestamp": msg.get("timestamp"),
+                "metadata": msg.get("metadata", {})
+            })
+            
+            # Tokeniza
+            tokens = tokenize_pt(texto_corrigido, corrigir=False)
+            if tokens:
+                st.session_state["user_corpus_text"] += " " + " ".join(tokens)
+                st.session_state["user_token_sequences"].append(tokens)
+            
+            # Analisa sentimento
+            if CONFIG.get("sentimento_habilitado"):
+                resultado_sentimento = analisar_sentimento(texto_corrigido, CONFIG["modelo_sentimento"])
+                st.session_state["sentiment_history"].append({
+                    "idx": len(st.session_state["sentiment_history"]) + 1,
+                    "label": resultado_sentimento.get("label", "neutro"),
+                    "confidence": float(resultado_sentimento.get("confidence", 0.0)),
+                    "score": _score_from_label(
+                        resultado_sentimento.get("label", "neutro"),
+                        float(resultado_sentimento.get("confidence", 0.0))
+                    )
+                })
+        
+        return len(novas_mensagens)
+        
+    except Exception as e:
+        st.error(f"Erro ao sincronizar: {e}")
+        return 0
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURAÇÃO DA INTERFACE
 # ═══════════════════════════════════════════════════════════════
