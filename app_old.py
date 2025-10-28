@@ -144,6 +144,7 @@ Princípios:
 8) Proteção de dados: não invente dados do cliente; confirme somente o que foi informado.
 
 Formato da resposta:
+- Resumo do caso:
 - Solução proposta:
 - Próximos passos:
 - Observações:
@@ -153,8 +154,8 @@ Exemplo de tom:
 """
 
 CONFIG = {
-    "modelo_padrao": os.getenv("OPENAI_MODEL", "gpt-4.1-nano"),
-    "modelo_sentimento": os.getenv("OPENAI_SENTIMENT_MODEL", "gpt-4.1-nano"),
+    "modelo_padrao": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+    "modelo_sentimento": os.getenv("OPENAI_SENTIMENT_MODEL", "gpt-4o-mini"),
     "temperatura_padrao": 0.3,
     "max_tokens_padrao": 500,
     "max_contexto_mensagens": 20,
@@ -654,8 +655,241 @@ st.write("---")
 st.caption("• 🧠 Sentimento  • ☁️ WordCloud  • 🔗 Relação de Palavras  • ✏️ Correção Automática")
 
 # ═══════════════════════════════════════════════════════════════
-# ESTADO DA APLICAÇÃO
+# SIDEBAR
 # ═══════════════════════════════════════════════════════════════
+
+st.sidebar.title("⚙️ PAINEL DE CONTROLE")
+
+# Correção Ortográfica
+st.sidebar.write("### ✏️ Correção Ortográfica")
+correcao_habilitada = st.sidebar.toggle(
+    "Ativar",
+    value=CONFIG.get("correcao_ortografica", True),
+    help="Corrige erros de digitação antes da análise"
+)
+CONFIG["correcao_ortografica"] = correcao_habilitada
+
+if correcao_habilitada:
+    st.sidebar.caption("✅ Palavras serão corrigidas automaticamente")
+else:
+    st.sidebar.caption("⚠️ Usando texto original (pode ter erros)")
+
+st.sidebar.write("---")
+
+# Sentimento
+st.sidebar.write("### 🧠 Análise de Sentimento")
+sentimento_habilitado = st.sidebar.toggle(
+    "Ativar",
+    value=CONFIG.get("sentimento_habilitado", True),
+)
+
+sent_container = st.sidebar.container()
+sent_container.caption("Última mensagem do usuário")
+
+# Evolução do Sentimento - GRÁFICO MELHORADO
+st.sidebar.write("### 📈 Evolução do Sentimento")
+with st.sidebar.container():
+    _hist = st.session_state.get("sentiment_history", [])
+    if _hist:
+        _scores = [h.get("score", 0.0) for h in _hist]
+        
+        # Cria DataFrame para melhor controle do gráfico
+        if _PANDAS_AVAILABLE:
+            df_sent = pd.DataFrame({
+                'Mensagem': range(1, len(_scores) + 1),
+                'Score': _scores
+            })
+            
+            # Gráfico de linha com espaçamento reduzido
+            st.line_chart(
+                df_sent.set_index('Mensagem'),
+                height=180,
+               use_container_width=True
+            )
+        else:
+            # Fallback sem pandas
+            st.line_chart(_scores, height=180,use_container_width=True)
+        
+        _last = _hist[-1]
+        
+        # Estatísticas resumidas
+        col_s1, col_s2 = st.sidebar.columns(2)
+        with col_s1:
+            st.caption(f"**Total:** {len(_scores)}")
+        with col_s2:
+            st.caption(f"**Último:** {_last.get('label', '?')}")
+        
+        # Média e tendência
+        media_score = sum(_scores) / len(_scores)
+        tendencia = "↗️" if len(_scores) > 1 and _scores[-1] > _scores[-2] else "↘️" if len(_scores) > 1 and _scores[-1] < _scores[-2] else "→"
+        
+        st.sidebar.caption(f"**Média:** {media_score:.2f} {tendencia}")
+        
+    else:
+        st.info("Envie uma mensagem para ver o gráfico.")
+
+st.sidebar.write("---")
+
+# WordCloud
+st.sidebar.write("### ☁️ Nuvem de Palavras")
+wc_container = st.sidebar.container()
+
+col_wc1, col_wc2 = st.sidebar.columns(2)
+with col_wc1:
+    if st.button("🗑️ Limpar nuvem",use_container_width=True):
+        st.session_state["user_corpus_text"] = ""
+        st.session_state["user_token_sequences"] = []
+        st.rerun()
+
+st.sidebar.write("---")
+
+# Relação
+st.sidebar.write("### 🔗 Relação de Palavras")
+graph_container = st.sidebar.container()
+
+with graph_container:
+    min_edge_weight = st.slider(
+        "Mín. coocorrências (aresta)",
+        1, 5, 1,
+        help="Filtra arestas fracas"
+    )
+    
+    max_path_depth = st.slider(
+        "Profundidade máx. caminho",
+        1, 8, 4,
+        help="Caminhos até a palavra alvo"
+    )
+    
+    show_paths_only = st.toggle(
+        "Mostrar apenas caminhos até palavra alvo",
+        value=True
+    )
+    
+    graph_dark_mode = st.toggle(
+        "Modo escuro (grafo)",
+        value=True
+    )
+
+st.sidebar.write("---")
+
+# Gerenciar Dados - NOVO COM TABS
+st.sidebar.write("### 💾 Gerenciar Dados")
+
+tab_sessao, tab_importar = st.sidebar.tabs(["💾 Sessão", "📁 Importar"])
+
+with tab_sessao:
+    st.caption("Salve/carregue conversas do sistema")
+    
+    col_save, col_load = st.columns(2)
+    
+    with col_save:
+        if st.button("💾 Salvar",use_container_width=True, key="save_session"):
+            filename = salvar_sessao()
+            if filename:
+                st.success(f"✅ {filename}")
+    
+    with col_load:
+        uploaded_session = st.file_uploader(
+            "Carregar sessão",
+            type=["pkl"],
+            label_visibility="collapsed",
+            key="upload_session"
+        )
+        if uploaded_session:
+            if carregar_sessao(uploaded_session):
+                st.success("✅ Carregada!")
+                st.rerun()
+
+with tab_importar:
+    st.caption("Analise arquivos externos")
+    
+    uploaded_file = st.file_uploader(
+        "Upload de arquivo",
+        type=["txt", "csv", "pdf", "docx"],
+        help="Formatos: TXT, CSV, PDF, DOCX",
+        label_visibility="collapsed",
+        key="upload_file"
+    )
+    
+    if uploaded_file:
+        file_ext = uploaded_file.name.split('.')[-1].lower()
+        
+        with st.spinner(f"📄 Processando {file_ext.upper()}..."):
+            # Processa conforme extensão
+            if file_ext == 'txt':
+                texto, erro = processar_txt(uploaded_file)
+            elif file_ext == 'csv':
+                texto, erro = processar_csv(uploaded_file)
+            elif file_ext == 'docx':
+                texto, erro = processar_docx(uploaded_file)
+            elif file_ext == 'pdf':
+                texto, erro = processar_pdf(uploaded_file)
+            else:
+                texto, erro = None, "Formato não suportado"
+            
+            if erro:
+                st.error(f"❌ {erro}")
+            elif texto:
+                # Analisa o arquivo
+                resultado, erro_analise = analisar_arquivo_importado(texto)
+                
+                if erro_analise:
+                    st.error(f"❌ {erro_analise}")
+                else:
+                    st.success(f"✅ Arquivo processado!")
+                    
+                    # Salva resultado
+                    st.session_state["arquivo_importado"] = resultado
+                    
+                    # Opções
+                    st.write("**Ações:**")
+                    
+                    col_a1, col_a2 = st.columns(2)
+                    
+                    with col_a1:
+                        if st.button("➕ Adicionar",use_container_width=True, key="add_file"):
+                            # Adiciona ao corpus
+                            st.session_state["user_corpus_text"] += " " + " ".join(resultado["tokens"])
+                            st.session_state["user_token_sequences"].append(resultado["tokens"])
+                            
+                            # Adiciona sentimentos
+                            for sent_data in resultado["sentimentos"]:
+                                sent = sent_data["sentimento"]
+                                st.session_state["sentiment_history"].append({
+                                    "idx": len(st.session_state["sentiment_history"]) + 1,
+                                    "label": sent["label"],
+                                    "confidence": sent["confidence"],
+                                    "score": _score_from_label(sent["label"], sent["confidence"])
+                                })
+                            
+                            st.success("✅ Integrado!")
+                            time.sleep(1)
+                            st.rerun()
+                    
+                    with col_a2:
+                        if st.button("📊 Ver",use_container_width=True, key="view_report"):
+                            st.session_state["mostrar_relatorio_arquivo"] = True
+                            st.rerun()
+
+st.sidebar.write("---")
+
+# Ações
+st.sidebar.write("### 🛠️ Ações")
+
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    if st.button("🗑️ Limpar chat",use_container_width=True):
+        st.session_state["lista_mensagens"] = []
+        st.session_state["sentimento_atual"] = None
+        st.session_state["user_corpus_text"] = ""
+        st.session_state["user_token_sequences"] = []
+        st.session_state["sentiment_history"] = []
+        st.rerun()
+
+with col2:
+    if st.button("🔄 Recarregar",use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
 # ═══════════════════════════════════════════════════════════════
 # ESTADO DA APLICAÇÃO
@@ -698,22 +932,6 @@ for msg in st.session_state["lista_mensagens"]:
     elif msg["role"] == "assistant":
         st.chat_message("assistant").write(msg["content"])
 
-
-# SIDEBAR: VISUALIZAÇÕES
-# ═══════════════════════════════════════════════════════════════
-
-# Definição das variáveis necessárias para as visualizações
-# (serão redefinidas na sidebar, mas precisam existir aqui para evitar erros)
-sentimento_habilitado = CONFIG.get("sentimento_habilitado", True)
-correcao_habilitada = CONFIG.get("correcao_ortografica", True)
-sent_container = st.container()  # Placeholder
-wc_container = st.container()    # Placeholder  
-graph_container = st.container() # Placeholder
-min_edge_weight = 1
-max_path_depth = 4
-show_paths_only = True
-graph_dark_mode = True
-
 # ═══════════════════════════════════════════════════════════════
 # ENTRADA DO USUÁRIO
 # ═══════════════════════════════════════════════════════════════
@@ -725,7 +943,7 @@ if mensagem_usuario:
     st.chat_message("user").write(mensagem_usuario)
     
     # Correção ortográfica
-    if CONFIG.get("correcao_ortografica", True):
+    if correcao_habilitada:
         texto_corrigido = corrigir_texto(mensagem_usuario)
         if texto_corrigido != mensagem_usuario:
             with st.expander("✏️ Texto corrigido automaticamente"):
@@ -814,157 +1032,314 @@ if mensagem_usuario:
 
 
 # ═══════════════════════════════════════════════════════════════
-# RODAPÉ
+# SIDEBAR: VISUALIZAÇÕES
+# ═══════════════════════════════════════════════════════════════
+
+def _badge(label: str) -> str:
+    """Cria badge colorido para o sentimento."""
+    colors = {
+        "positivo": "#16a34a",
+        "neutro": "#6b7280",
+        "negativo": "#dc2626"
+    }
+    color = colors.get(label, "#6b7280")
+    return (
+        f"<span style='background:{color};color:white;padding:4px 10px;"
+        f"border-radius:999px;font-weight:600;font-size:12px;'>"
+        f"{label.upper()}</span>"
+    )
+
+
+# Sentimento
+with sent_container:
+    data = st.session_state.get("sentimento_atual")
+    
+    if sentimento_habilitado and data:
+        st.markdown(_badge(data["label"]), unsafe_allow_html=True)
+        st.metric("Confiança", f"{round(data['confidence'] * 100):d}%")
+        
+        if data["emotions"]:
+            emotes = " ".join([f"`{e}`" for e in data["emotions"][:6]])
+            st.write(f"**Emoções:** {emotes}")
+        
+        if data.get("reason"):
+            with st.expander("📝 Justificativa"):
+                st.write(data["reason"])
+    
+    elif sentimento_habilitado:
+        st.info("Envie uma mensagem para ver o sentimento.")
+
+
+# WordCloud
+with wc_container:
+    corpus = st.session_state.get("user_corpus_text", "")
+    
+    if corpus.strip():
+        buf, err = gerar_wordcloud(corpus)
+        
+        if err:
+            st.warning(err)
+        elif buf:
+            st.image(buf, caption="Nuvem de Palavras (Corrigidas)",use_container_width=True)
+            
+            st.download_button(
+                "📥 Baixar PNG",
+                data=buf,
+                file_name=f"wordcloud_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                mime="image/png",
+               use_container_width=True,
+            )
+            
+            tokens_unicos = len(set(corpus.split()))
+            tokens_totais = len(corpus.split())
+            st.caption(f"📊 {tokens_totais} palavras | {tokens_unicos} únicas")
+    else:
+        st.info("Digite mensagens para gerar a nuvem.")
+
+
+# Grafo
+with graph_container:
+    token_seqs = st.session_state.get("user_token_sequences", [])
+    
+    if not _GRAPH_AVAILABLE:
+        st.info("Instale: pip install networkx pyvis")
+    
+    elif len(token_seqs) == 0:
+        st.info("Envie mensagens para gerar o grafo.")
+    
+    else:
+        with st.spinner("🔗 Construindo grafo..."):
+            G_full = build_word_graph(
+                token_seqs,
+                min_edge_weight=min_edge_weight,
+                max_nodes=500
+            )
+        
+        if G_full is None or len(G_full) == 0:
+            st.warning("Grafo vazio. Envie mais mensagens.")
+        
+        else:
+            if len(G_full.nodes()) >= 500:
+                st.warning("⚠️ Mostrando top 500 palavras.")
+            
+            counts = nx.get_node_attributes(G_full, "count")
+            words_sorted = sorted(counts.items(), key=lambda x: (-x[1], x[0]))
+            top_words = [w for w, c in words_sorted[:200]]
+            
+            target = st.selectbox(
+                "🎯 Palavra alvo:",
+                options=["(nenhuma)"] + top_words,
+                help="Destaca palavra no grafo"
+            )
+            
+            G_view = G_full
+            
+            if show_paths_only and target and target != "(nenhuma)":
+                G_tmp = subgraph_paths_to_target(G_full, target, max_depth=max_path_depth)
+                
+                if G_tmp is not None and len(G_tmp) > 0:
+                    G_view = G_tmp
+                    st.caption(f"🔍 {len(G_view.nodes())} nós conectados a '{target}'")
+                else:
+                    st.info(f"Sem caminhos para '{target}'")
+                    G_view = None
+            
+            if G_view is not None and len(G_view) > 0:
+                html, gerr = render_graph_pyvis(
+                    G_view,
+                    highlight_target=target if target != "(nenhuma)" else None,
+                    height_px=520,
+                    dark_mode=graph_dark_mode
+                )
+                
+                if gerr:
+                    st.error(gerr)
+                else:
+                    st.session_state["grafo_html"] = html
+                    
+                    st.components.v1.html(html, height=540, scrolling=True)
+                    
+                    st.caption(
+                        f"📊 {len(G_view.nodes())} nós | "
+                        f"{len(G_view.edges())} arestas | "
+                        f"Densidade: {nx.density(G_view):.3f}"
+                    )
+                    
+                    col_g1, col_g2 = st.sidebar.columns(2)
+                    
+                    with col_g1:
+                        if st.button("📱 Expandir",use_container_width=True, key="expand_graph"):
+                            st.session_state["grafo_expand_main"] = True
+                            st.rerun()
+                    
+                    with col_g2:
+                        st.download_button(
+                            "📥 HTML",
+                            data=html,
+                            file_name=f"grafo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                            mime="text/html",
+                           use_container_width=True,
+                        )
+
+
+# ═══════════════════════════════════════════════════════════════
+# GRAFO EXPANDIDO
+# ═══════════════════════════════════════════════════════════════
+
+if st.session_state.get("grafo_expand_main") and st.session_state.get("grafo_html"):
+    st.markdown("---")
+    st.markdown("## 🔗 Grafo de Palavras (Visualização Expandida)")
+    
+    st_html(st.session_state["grafo_html"], height=820, scrolling=True)
+    
+    col_exp1, col_exp2, col_exp3 = st.columns(3)
+    
+    with col_exp1:
+        if st.button("↩️ Recolher",use_container_width=True):
+            st.session_state["grafo_expand_main"] = False
+            st.rerun()
+    
+    with col_exp2:
+        st.download_button(
+            "📥 Baixar HTML",
+            data=st.session_state["grafo_html"],
+            file_name=f"grafo_expandido_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+            mime="text/html",
+           use_container_width=True,
+        )
+    
+    with col_exp3:
+        if _GRAPH_AVAILABLE:
+            token_seqs = st.session_state.get("user_token_sequences", [])
+            total_palavras = sum(len(seq) for seq in token_seqs)
+            st.metric("Total Palavras", total_palavras)
+
+
+# ═══════════════════════════════════════════════════════════════
+# RELATÓRIO DE ARQUIVO IMPORTADO
+# ═══════════════════════════════════════════════════════════════
+
+if st.session_state.get("mostrar_relatorio_arquivo") and st.session_state.get("arquivo_importado"):
+    st.markdown("---")
+    st.markdown("## 📊 Análise do Arquivo Importado")
+    
+    resultado = st.session_state["arquivo_importado"]
+    stats = resultado["stats"]
+    
+    # Métricas principais
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    
+    with col_m1:
+        st.metric("📝 Total Palavras", f"{stats['total_palavras']:,}")
+    
+    with col_m2:
+        st.metric("🔤 Palavras Únicas", f"{stats['palavras_unicas']:,}")
+    
+    with col_m3:
+        st.metric("📈 Riqueza Vocabular", f"{stats['riqueza_vocabular']:.1f}%")
+    
+    with col_m4:
+        if "sentimento_geral" in stats:
+            st.metric(
+                "🎭 Sentimento Geral",
+                stats["sentimento_geral"].capitalize(),
+                delta=f"{stats['sentimento_medio']:.2f}"
+            )
+    
+    # Tabs com visualizações
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Estatísticas", "🧠 Sentimentos", "☁️ WordCloud", "📄 Texto"])
+    
+    with tab1:
+        st.write("### Top 20 Palavras Mais Frequentes")
+        
+        if _PANDAS_AVAILABLE:
+            palavras_freq = stats["top_palavras"]
+            df_palavras = pd.DataFrame(palavras_freq, columns=["Palavra", "Frequência"])
+            
+            st.bar_chart(df_palavras.set_index("Palavra"))
+            st.dataframe(df_palavras,use_container_width=True)
+        else:
+            for palavra, freq in stats["top_palavras"]:
+                st.write(f"**{palavra}**: {freq} vezes")
+    
+    with tab2:
+        st.write("### Análise de Sentimento por Segmento")
+        
+        if resultado["sentimentos"]:
+            for sent_data in resultado["sentimentos"][:20]:
+                sent = sent_data["sentimento"]
+                
+                col_s1, col_s2 = st.columns([3, 1])
+                
+                with col_s1:
+                    st.write(f"**Linha {sent_data['linha']}:** {sent_data['texto']}")
+                
+                with col_s2:
+                    st.markdown(_badge(sent["label"]), unsafe_allow_html=True)
+                    st.caption(f"Conf: {int(sent['confidence']*100)}%")
+                
+                st.divider()
+        else:
+            st.info("Nenhum segmento analisado")
+    
+    with tab3:
+        st.write("### Nuvem de Palavras do Arquivo")
+        
+        corpus_arquivo = " ".join(resultado["tokens"])
+        buf, err = gerar_wordcloud(corpus_arquivo, width=800, height=500)
+        
+        if err:
+            st.warning(err)
+        elif buf:
+            st.image(buf,use_container_width=True)
+            
+            st.download_button(
+                "📥 Baixar WordCloud",
+                data=buf,
+                file_name=f"wordcloud_arquivo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                mime="image/png",
+            )
+    
+    with tab4:
+        st.write("### Texto Original vs Corrigido")
+        
+        col_t1, col_t2 = st.columns(2)
+        
+        with col_t1:
+            st.write("**Original:**")
+            st.text_area(
+                "original",
+                resultado["texto_original"][:5000],
+                height=400,
+                label_visibility="collapsed"
+            )
+        
+        with col_t2:
+            st.write("**Corrigido:**")
+            st.text_area(
+                "corrigido",
+                resultado["texto_corrigido"][:5000],
+                height=400,
+                label_visibility="collapsed"
+            )
+    
+    # Botão fechar
+    if st.button("✖️ Fechar Relatório"):
+        st.session_state["mostrar_relatorio_arquivo"] = False
+        st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════════
+# EXPORTAÇÃO DE RELATÓRIO
 # ═══════════════════════════════════════════════════════════════
 
 st.markdown("---")
+st.subheader("📊 Exportar Relatório de Análise")
 
-col_info1, col_info2, col_info3 = st.columns(3)
-
-with col_info1:
-    st.caption(f"**Modelo:** {CONFIG['modelo_padrao']}")
-    st.caption(f"**Temperatura:** {CONFIG['temperatura_padrao']}")
-
-with col_info2:
-    total_msgs = len(st.session_state.get("lista_mensagens", []))
-    msgs_user = sum(1 for m in st.session_state.get("lista_mensagens", []) if m["role"] == "user")
-    st.caption(f"**Mensagens:** {total_msgs} ({msgs_user} do usuário)")
-
-with col_info3:
-    if CONFIG.get("correcao_ortografica", True):
-        st.caption("✅ **Correção:** Ativa")
-    else:
-        st.caption("⚠️ **Correção:** Desativada")
-
-st.caption(
-    "🤖 Assistente de Atendimento com IA | "
-    f"Powered by OpenAI | Versão 2.1 | {datetime.now().strftime('%Y')}"
-)
-
-# ═══════════════════════════════════════════════════════════════
-# SIDEBAR - PAINEL DE CONTROLE
-# ═══════════════════════════════════════════════════════════════
-
-st.sidebar.title("⚙️ PAINEL DE CONTROLE")
-
-# Correção Ortográfica
-st.sidebar.write("### ✏️ Correção Ortográfica")
-correcao_habilitada = st.sidebar.toggle(
-    "Ativar",
-    value=CONFIG.get("correcao_ortografica", True),
-    help="Corrige erros de digitação antes da análise"
-)
-CONFIG["correcao_ortografica"] = correcao_habilitada
-
-if correcao_habilitada:
-    st.sidebar.caption("✅ Palavras serão corrigidas automaticamente")
-else:
-    st.sidebar.caption("⚠️ Usando texto original (pode ter erros)")
-
-st.sidebar.write("---")
-
-st.sidebar.write("### 🧠 Análise de Sentimento")
-sentimento_habilitado = st.sidebar.toggle(
-    "Ativar",
-    value=CONFIG.get("sentimento_habilitado", True),
-)
-
-sent_container = st.sidebar.container()
-sent_container.caption("Última mensagem do usuário")
-
-# Evolução do Sentimento - GRÁFICO MELHORADO
-st.sidebar.write("### 📈 Evolução do Sentimento")
-with st.sidebar.container():
-    _hist = st.session_state.get("sentiment_history", [])
-    if _hist:
-        _scores = [h.get("score", 0.0) for h in _hist]
-        
-        # Cria DataFrame para melhor controle do gráfico
-        if _PANDAS_AVAILABLE:
-            df_sent = pd.DataFrame({
-                'Mensagem': range(1, len(_scores) + 1),
-                'Score': _scores
-            })
-            
-            # Gráfico de linha com espaçamento reduzido
-            st.line_chart(
-                df_sent.set_index('Mensagem'),
-                height=180,
-               use_container_width=True
-            )
-        else:
-            # Fallback sem pandas
-            st.line_chart(_scores, height=180,use_container_width=True)
-        
-        _last = _hist[-1]
-        
-        # Estatísticas resumidas
-        col_s1, col_s2 = st.sidebar.columns(2)
-        with col_s1:
-            st.caption(f"**Total:** {len(_scores)}")
-        with col_s2:
-            st.caption(f"**Último:** {_last.get('label', '?')}")
-        
-        # Média e tendência
-        media_score = sum(_scores) / len(_scores)
-        tendencia = "↗️" if len(_scores) > 1 and _scores[-1] > _scores[-2] else "↘️" if len(_scores) > 1 and _scores[-1] < _scores[-2] else "→"
-        
-        st.sidebar.caption(f"**Média:** {media_score:.2f} {tendencia}")
-        
-    else:
-        st.info("Envie uma mensagem para ver o gráfico.")
-
-st.sidebar.write("---")
-
-# WordCloud
-st.sidebar.write("### ☁️ Nuvem de Palavras")
-wc_container = st.sidebar.container()
-
-col_wc1, col_wc2 = st.sidebar.columns(2)
-with col_wc1:
-    if st.button("🗑️ Limpar nuvem",use_container_width=True):
-        st.session_state["user_corpus_text"] = ""
-        st.session_state["user_token_sequences"] = []
-        st.rerun()
-
-st.sidebar.write("---")
-
-# Relação
-st.sidebar.write("### 🔗 Relação de Palavras")
-graph_container = st.sidebar.container()
-
-with graph_container:
-    min_edge_weight = st.sidebar.slider(
-        "Mín. coocorrências (aresta)",
-        1, 5, 1,
-        help="Filtra arestas fracas"
-    )
-    
-    max_path_depth = st.sidebar.slider(
-        "Profundidade máx. caminho",
-        1, 8, 4,
-        help="Caminhos até a palavra alvo"
-    )
-    
-    show_paths_only = st.sidebar.toggle(
-        "Mostrar apenas caminhos até palavra alvo",
-        value=True
-    )
-    
-    graph_dark_mode = st.sidebar.toggle(
-        "Modo escuro (grafo)",
-        value=True
-    )
-
-st.sidebar.write("---")
-
-# Exportar Relatórios
-st.sidebar.write("### 📊 Exportar Relatórios")
-
-col_report1, col_report2 = st.sidebar.columns(2)
+col_report1, col_report2 = st.columns(2)
 
 with col_report1:
-    if st.button("📄 TXT",use_container_width=True, key="sidebar_report_txt"):
+    if st.button("📄 Gerar Relatório TXT",use_container_width=True):
         relatorio = f"""
 ═══════════════════════════════════════════════════════════════
 RELATÓRIO DE ANÁLISE DE CONVERSAS
@@ -1042,18 +1417,17 @@ HISTÓRICO DE MENSAGENS
             data=relatorio,
             file_name=f"relatorio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain",
-            use_container_width=True,
-            key="download_txt_sidebar"
+           use_container_width=True,
         )
 
 with col_report2:
-    if st.button("📊 JSON",use_container_width=True, key="sidebar_report_json"):
+    if st.button("📊 Gerar Relatório JSON",use_container_width=True):
         relatorio_json = {
             "metadata": {
                 "data_geracao": datetime.now().isoformat(),
                 "modelo": CONFIG["modelo_padrao"],
                 "temperatura": CONFIG["temperatura_padrao"],
-                "correcao_ortografica": CONFIG.get("correcao_ortografica", True),
+                "correcao_ortografica": correcao_habilitada,
             },
             "estatisticas": {
                 "total_mensagens": len(st.session_state.get("lista_mensagens", [])),
@@ -1077,365 +1451,140 @@ with col_report2:
             data=json_str,
             file_name=f"relatorio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json",
-            use_container_width=True,
-            key="download_json_sidebar"
+           use_container_width=True,
         )
 
-st.sidebar.write("---")
 
-# Gerenciar Dados - NOVO COM TABS
-st.sidebar.write("### 💾 Gerenciar Dados")
+# ═══════════════════════════════════════════════════════════════
+# RODAPÉ
+# ═══════════════════════════════════════════════════════════════
 
-tab_sessao, tab_importar = st.sidebar.tabs(["💾 Sessão", "📁 Importar"])
+st.markdown("---")
 
-with tab_sessao:
-    st.caption("Salve/carregue conversas do sistema")
-    
-    col_save, col_load = st.sidebar.columns(2)
-    
-    with col_save:
-        if st.button("💾 Salvar",use_container_width=True, key="save_session"):
-            filename = salvar_sessao()
-            if filename:
-                st.success(f"✅ {filename}")
-    
-    with col_load:
-        uploaded_session = st.file_uploader(
-            "Carregar sessão",
-            type=["pkl"],
-            label_visibility="collapsed",
-            key="upload_session"
-        )
-        if uploaded_session:
-            if carregar_sessao(uploaded_session):
-                st.success("✅ Carregada!")
-                st.rerun()
+col_info1, col_info2, col_info3 = st.columns(3)
 
-with tab_importar:
-    st.caption("Analise arquivos externos")
-    
-    uploaded_file = st.file_uploader(
-        "Upload de arquivo",
-        type=["txt", "csv", "pdf", "docx"],
-        help="Formatos: TXT, CSV, PDF, DOCX",
-        label_visibility="collapsed",
-        key="upload_file"
-    )
-    
-    if uploaded_file:
-        file_ext = uploaded_file.name.split('.')[-1].lower()
-        
-        with st.spinner(f"📄 Processando {file_ext.upper()}..."):
-            # Processa conforme extensão
-            if file_ext == 'txt':
-                texto, erro = processar_txt(uploaded_file)
-            elif file_ext == 'csv':
-                texto, erro = processar_csv(uploaded_file)
-            elif file_ext == 'docx':
-                texto, erro = processar_docx(uploaded_file)
-            elif file_ext == 'pdf':
-                texto, erro = processar_pdf(uploaded_file)
-            else:
-                texto, erro = None, "Formato não suportado"
-            
-            if erro:
-                st.error(f"❌ {erro}")
-            elif texto:
-                # Analisa o arquivo
-                resultado, erro_analise = analisar_arquivo_importado(texto)
-                
-                if erro_analise:
-                    st.error(f"❌ {erro_analise}")
-                else:
-                    st.success(f"✅ Arquivo processado!")
-                    
-                    # Salva resultado
-                    st.session_state["arquivo_importado"] = resultado
-                    
-                    # Opções
-                    st.write("**Ações:**")
-                    
-                    col_a1, col_a2 = st.sidebar.columns(2)
-                    
-                    with col_a1:
-                        if st.button("➕ Adicionar",use_container_width=True, key="add_file"):
-                            # Adiciona ao corpus
-                            st.session_state["user_corpus_text"] += " " + " ".join(resultado["tokens"])
-                            st.session_state["user_token_sequences"].append(resultado["tokens"])
-                            
-                            # Adiciona sentimentos
-                            for sent_data in resultado["sentimentos"]:
-                                sent = sent_data["sentimento"]
-                                st.session_state["sentiment_history"].append({
-                                    "idx": len(st.session_state["sentiment_history"]) + 1,
-                                    "label": sent["label"],
-                                    "confidence": sent["confidence"],
-                                    "score": _score_from_label(sent["label"], sent["confidence"])
-                                })
-                            
-                            st.success("✅ Integrado!")
-                            time.sleep(1)
-                            st.rerun()
-                    
-                    with col_a2:
-                        if st.button("📊 Ver",use_container_width=True, key="view_report"):
-                            st.session_state["mostrar_relatorio_arquivo"] = True
-                            st.rerun()
+with col_info1:
+    st.caption(f"**Modelo:** {CONFIG['modelo_padrao']}")
+    st.caption(f"**Temperatura:** {CONFIG['temperatura_padrao']}")
 
-st.sidebar.write("---")
+with col_info2:
+    total_msgs = len(st.session_state.get("lista_mensagens", []))
+    msgs_user = sum(1 for m in st.session_state.get("lista_mensagens", []) if m["role"] == "user")
+    st.caption(f"**Mensagens:** {total_msgs} ({msgs_user} do usuário)")
 
-# Dicas de Uso
-st.sidebar.write("### 💡 Dicas de Uso")
-with st.sidebar.expander("Como usar"):
+with col_info3:
+    if correcao_habilitada:
+        st.caption("✅ **Correção:** Ativa")
+    else:
+        st.caption("⚠️ **Correção:** Desativada")
+
+st.caption(
+    "🤖 Assistente de Atendimento com IA | "
+    f"Powered by OpenAI | Versão 2.1 | {datetime.now().strftime('%Y')}"
+)
+
+
+# ═══════════════════════════════════════════════════════════════
+# AJUDA E DICAS
+# ═══════════════════════════════════════════════════════════════
+
+with st.expander("💡 Dicas de Uso"):
     st.markdown("""
+    ### Como usar este assistente:
+    
     **🔧 Correção Ortográfica**
-    - Ative para corrigir automaticamente erros
-    - "vc" → "você", "nao" → "não", etc.
+    - Ative na sidebar para corrigir automaticamente erros
+    - Correções: "vc" → "você", "nao" → "não", etc.
+    - Texto corrigido usado em todas as análises
     
     **📁 Importar Arquivos**
-    - Formatos: TXT, CSV, PDF, DOCX
-    - CSV: detecta coluna de mensagens
+    - Formatos aceitos: TXT, CSV, PDF, DOCX
+    - CSV: detecta automaticamente coluna de mensagens
+    - Opções: adicionar ao chat atual ou ver relatório separado
     
     **🧠 Análise de Sentimento**
     - Verde = Positivo | Cinza = Neutro | Vermelho = Negativo
     - Gráfico mostra evolução em tempo real
+    - Espaçamento reduzido para visualizar mudanças
     
     **☁️ Nuvem de Palavras**
     - Palavras maiores = mais frequentes
+    - Apenas palavras corrigidas são exibidas
     
     **🔗 Grafo de Palavras**
-    - Mostra coocorrências (palavras juntas)
-    - Use "Palavra alvo" para focar conexões
+    - Mostra coocorrências (palavras que aparecem juntas)
+    - Use "Palavra alvo" para focar em conexões específicas
+    - Limite de 500 nós para melhor performance
+    
+    **💾 Salvar/Carregar**
+    - Salve sessões completas (.pkl)
+    - Carregue sessões anteriores para continuar
     
     **📊 Relatórios**
-    - TXT: formatado para leitura
-    - JSON: dados estruturados para análise
+    - TXT: relatório formatado para leitura
+    - JSON: dados estruturados para análise externa
     """)
 
-st.sidebar.write("---")
-
-# Configurações Avançadas
-st.sidebar.write("### ⚙️ Configurações")
-with st.sidebar.expander("Parâmetros do Sistema"):
+with st.expander("⚙️ Configurações Avançadas"):
     st.markdown(f"""
+    ### Parâmetros do Sistema:
+    
     **Modelo:** `{CONFIG['modelo_padrao']}`
+    - Modelo OpenAI usado para respostas
     - gpt-4o-mini = rápido e econômico
     - gpt-4o = mais preciso e contextual
     
     **Temperatura:** `{CONFIG['temperatura_padrao']}`
     - Controla criatividade (0.0 a 1.0)
+    - Baixo = mais determinístico
+    - Alto = mais variado
     
     **Contexto:** `{CONFIG['max_contexto_mensagens']}` mensagens
     - Quantas mensagens são enviadas à API
+    - Mais contexto = melhor memória, mais custo
     
     **Correção Ortográfica:**
     - Dicionário: {len(CORREÇÕES_ORTOGRÁFICAS)} correções
     - Processamento local (sem API)
+    - Preserva capitalização original
     
     **Formatos Suportados:**
     - TXT: texto puro (UTF-8 ou Latin-1)
-    - CSV: colunas automáticas
+    - CSV: colunas automáticas ou manual
     - PDF: extração de texto (PyPDF2)
-    - DOCX: parágrafos do Word
+    - DOCX: parágrafos do Word (python-docx)
     """)
 
-st.sidebar.write("---")
-
-# Dependências e Instalação
-st.sidebar.write("### 🔧 Instalação")
-with st.sidebar.expander("Dependências"):
+with st.expander("🔧 Dependências e Instalação"):
     st.markdown("""
-    **Obrigatórios:**
-    ```
-    pip install streamlit openai python-dotenv
-    ```
+    ### Pacotes Necessários:
     
-    **Opcionais:**
-    ```
-    pip install wordcloud networkx pyvis
+    **Obrigatórios:**
+```bash
+    pip install streamlit openai python-dotenv
+```
+    
+    **Opcionais (para recursos extras):**
+```bash
+    # Para WordCloud
+    pip install wordcloud
+    
+    # Para Grafo de Palavras
+    pip install networkx pyvis
+    
+    # Para análise de arquivos
     pip install pandas PyPDF2 python-docx
-    ```
+```
     
     **Arquivo .env:**
-    ```
+```
     OPENAI_API_KEY=sk-sua-chave-aqui
-    ```
+    OPENAI_MODEL=gpt-4o-mini
+    OPENAI_SENTIMENT_MODEL=gpt-4o-mini
+```
     
     **Executar:**
-    ```
+```bash
     streamlit run app.py
-    ```
+```
     """)
-
-st.sidebar.write("---")
-
-# Ações
-st.sidebar.write("### 🛠️ Ações")
-
-col1, col2 = st.sidebar.columns(2)
-with col1:
-    if st.button("🗑️ Limpar chat",use_container_width=True):
-        st.session_state["lista_mensagens"] = []
-        st.session_state["sentimento_atual"] = None
-        st.session_state["user_corpus_text"] = ""
-        st.session_state["user_token_sequences"] = []
-        st.session_state["sentiment_history"] = []
-        st.rerun()
-
-with col2:
-    if st.button("🔄 Recarregar",use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-
-# ═══════════════════════════════════════════════════════════════
-# SIDEBAR: VISUALIZAÇÕES
-# ═══════════════════════════════════════════════════════════════
-
-def _badge(label: str) -> str:
-    """Cria badge colorido para o sentimento."""
-    colors = {
-        "positivo": "#16a34a",
-        "neutro": "#6b7280",
-        "negativo": "#dc2626"
-    }
-    color = colors.get(label, "#6b7280")
-    return (
-        f"<span style='background:{color};color:white;padding:4px 10px;"
-        f"border-radius:999px;font-weight:600;font-size:12px;'>"
-        f"{label.upper()}</span>"
-    )
-
-
-with sent_container:
-    data = st.session_state.get("sentimento_atual")
-    
-    if sentimento_habilitado and data:
-        st.markdown(_badge(data["label"]), unsafe_allow_html=True)
-        st.metric("Confiança", f"{round(data['confidence'] * 100):d}%")
-        
-        if data["emotions"]:
-            emotes = " ".join([f"`{e}`" for e in data["emotions"][:6]])
-            st.write(f"**Emoções:** {emotes}")
-        
-        if data.get("reason"):
-            with st.expander("📝 Justificativa"):
-                st.write(data["reason"])
-    
-    elif sentimento_habilitado:
-        # Análise será exibida após primeira mensagem
-        pass
-
-
-# WordCloud
-with wc_container:
-    corpus = st.session_state.get("user_corpus_text", "")
-    
-    if corpus.strip():
-        buf, err = gerar_wordcloud(corpus)
-        
-        if err:
-            st.warning(err)
-        elif buf:
-            st.image(buf, caption="Nuvem de Palavras (Corrigidas)",use_container_width=True)
-            
-            st.download_button(
-                "📥 Baixar PNG",
-                data=buf,
-                file_name=f"wordcloud_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
-                mime="image/png",
-               use_container_width=True,
-            )
-            
-            tokens_unicos = len(set(corpus.split()))
-            tokens_totais = len(corpus.split())
-            st.caption(f"📊 {tokens_totais} palavras | {tokens_unicos} únicas")
-    else:
-        # Nuvem será gerada automaticamente
-        pass
-
-
-# Grafo
-with graph_container:
-    token_seqs = st.session_state.get("user_token_sequences", [])
-    
-    if not _GRAPH_AVAILABLE:
-        st.info("Instale: pip install networkx pyvis")
-    
-    elif len(token_seqs) == 0:
-        # Grafo será gerado automaticamente
-        pass
-    
-    else:
-        with st.spinner("🔗 Construindo grafo..."):
-            G_full = build_word_graph(
-                token_seqs,
-                min_edge_weight=min_edge_weight,
-                max_nodes=500
-            )
-        
-        if G_full is None or len(G_full) == 0:
-            st.warning("Grafo vazio. Envie mais mensagens.")
-        
-        else:
-            if len(G_full.nodes()) >= 500:
-                st.warning("⚠️ Mostrando top 500 palavras.")
-            
-            counts = nx.get_node_attributes(G_full, "count")
-            words_sorted = sorted(counts.items(), key=lambda x: (-x[1], x[0]))
-            top_words = [w for w, c in words_sorted[:200]]
-            
-            target = st.selectbox(
-                "🎯 Palavra alvo:",
-                options=["(nenhuma)"] + top_words,
-                help="Destaca palavra no grafo"
-            )
-            
-            G_view = G_full
-            
-            if show_paths_only and target and target != "(nenhuma)":
-                G_tmp = subgraph_paths_to_target(G_full, target, max_depth=max_path_depth)
-                
-                if G_tmp is not None and len(G_tmp) > 0:
-                    G_view = G_tmp
-                    st.caption(f"🔍 {len(G_view.nodes())} nós conectados a '{target}'")
-                else:
-                    st.info(f"Sem caminhos para '{target}'")
-                    G_view = None
-            
-            if G_view is not None and len(G_view) > 0:
-                html, gerr = render_graph_pyvis(
-                    G_view,
-                    highlight_target=target if target != "(nenhuma)" else None,
-                    height_px=520,
-                    dark_mode=graph_dark_mode
-                )
-                
-                if gerr:
-                    st.error(gerr)
-                else:
-                    st.session_state["grafo_html"] = html
-                    
-                    st.components.v1.html(html, height=540, scrolling=True)
-                    
-                    st.caption(
-                        f"📊 {len(G_view.nodes())} nós | "
-                        f"{len(G_view.edges())} arestas | "
-                        f"Densidade: {nx.density(G_view):.3f}"
-                    )
-                    
-                    col_g1, col_g2 = st.sidebar.columns(2)
-                    
-                    with col_g1:
-                        if st.button("📱 Expandir",use_container_width=True, key="expand_graph_sidebar"):
-                            st.session_state["grafo_expand_main"] = True
-                            st.rerun()
-                    
-                    with col_g2:
-                        st.download_button(
-                            "📥 HTML",
-                            data=html,
-                            file_name=f"grafo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
-                            mime="text/html",
-                           use_container_width=True,
-                           key="download_html_sidebar"
-                        )
