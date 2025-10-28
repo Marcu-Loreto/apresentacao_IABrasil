@@ -14,6 +14,7 @@ import time
 import pickle
 from datetime import datetime
 
+
 # Imports opcionais
 try:
     from difflib import SequenceMatcher
@@ -47,6 +48,7 @@ except Exception:
 # Carrega variáveis do .env
 load_dotenv()
 
+from shared_state import SharedState
 # ═══════════════════════════════════════════════════════════════
 # CORRETOR ORTOGRÁFICO INTEGRADO
 # ═══════════════════════════════════════════════════════════════
