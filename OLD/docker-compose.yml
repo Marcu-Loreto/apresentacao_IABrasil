@@ -1,0 +1,32 @@
+services:
+  app:
+    image: python:3.12-slim
+    working_dir: /app
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONUNBUFFERED=1
+      - PIP_NO_CACHE_DIR=1
+    volumes:
+      - ./:/app
+    command: >
+      bash -lc '
+        set -e;
+        apt-get update &&
+        apt-get install -y --no-install-recommends build-essential gcc curl libfreetype6-dev libpng-dev libgl1 &&
+        pip install --upgrade pip &&
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt;
+        else
+          pip install streamlit python-dotenv openai wordcloud networkx pyvis pillow;
+        fi &&
+        streamlit run app_01.py --server.port=${STREAMLIT_SERVER_PORT:-8501} --server.address=0.0.0.0
+      '
+    ports:
+      - "8501"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
