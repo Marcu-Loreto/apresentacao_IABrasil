@@ -658,9 +658,9 @@ def sincronizar_mensagens_api(session_id: str = "default"):
         # Obtém do Streamlit
         mensagens_atuais = st.session_state.get("lista_mensagens", [])
         st.sidebar.caption(f"💾 No Streamlit: {len(mensagens_atuais)} msgs")
-    try:
-        # Obtém mensagens do PostgreSQL
-        mensagens_api = SharedState.get_messages(session_id)
+    # try:
+    #     # Obtém mensagens do PostgreSQL
+    #     mensagens_api = SharedState.get_messages(session_id)
         
         if not mensagens_api:
             return 0
