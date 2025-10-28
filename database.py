@@ -114,43 +114,44 @@ def init_db():
 class Database:
     """Gerencia mensagens no PostgreSQL"""
     
-    @staticmethod
-    def add_message(session_id: str, role: str, content: str, metadata: Optional[Dict] = None):
-        """Adiciona mensagem ao banco"""
-        conn = get_connection()
-        if not conn:
-            raise Exception("PostgreSQL não disponível")
+@staticmethod
+def add_message(session_id: str, role: str, content: str, metadata: Optional[Dict] = None):
+    """Adiciona mensagem ao banco"""
+    conn = get_connection()
+    if not conn:
+        raise Exception("PostgreSQL não disponível")
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            
-            timestamp = datetime.now()
-            metadata_json = json.dumps(metadata or {})
-            
-            cursor.execute("""
-                INSERT INTO messages (session_id, role, content, timestamp, metadata)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id, session_id, role, content, timestamp, metadata
-            """, (session_id, role, content, timestamp, metadata_json))
-            
-            result = cursor.fetchone()
-            conn.commit()
-            cursor.close()
-            
-            return {
-                "id": result["id"],
-                "session_id": result["session_id"],
-                "role": result["role"],
-                "content": result["content"],
-                "timestamp": result["timestamp"].isoformat(),
-                "metadata": json.loads(result["metadata"]) if result["metadata"] else {}
-            }
-            
-        except Exception as e:
-            conn.rollback()
-            raise e
-        finally:
-            release_connection(conn)
+        timestamp = datetime.now()
+        metadata_json = json.dumps(metadata or {})
+        
+        cursor.execute("""
+            INSERT INTO messages (session_id, role, content, timestamp, metadata)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, session_id, role, content, timestamp, metadata
+        """, (session_id, role, content, timestamp, metadata_json))
+        
+        result = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        
+        # CORRIGIR AQUI - converter para dict Python puro
+        return {
+            "id": int(result["id"]),
+            "session_id": str(result["session_id"]),
+            "role": str(result["role"]),
+            "content": str(result["content"]),
+            "timestamp": result["timestamp"].isoformat() if result["timestamp"] else None,
+            "metadata": json.loads(result["metadata"]) if result["metadata"] else {}
+        }
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        release_connection(conn)
     
     @staticmethod
     def get_messages(session_id: str, limit: Optional[int] = None) -> List[Dict]:
