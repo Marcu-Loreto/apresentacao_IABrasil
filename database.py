@@ -15,9 +15,9 @@ try:
     PSYCOPG2_AVAILABLE = True
 except ImportError:
     PSYCOPG2_AVAILABLE = False
-    print("⚠️ psycopg2 não instalado. Instale: pip install psycopg2-binary")
+    print("⚠️ psycopg2 não instalado")
 
-# Configuração PostgreSQL
+# Configuração
 DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
 DB_PORT = int(os.getenv("POSTGRES_PORT", 5432))
 DB_NAME = os.getenv("POSTGRES_DB", "atendimento_db")
@@ -70,7 +70,7 @@ def release_connection(conn):
 
 
 def init_db():
-    """Inicializa tabelas do banco"""
+    """Inicializa tabelas"""
     conn = get_connection()
     if not conn:
         return
@@ -114,44 +114,51 @@ def init_db():
 class Database:
     """Gerencia mensagens no PostgreSQL"""
     
-@staticmethod
-def add_message(session_id: str, role: str, content: str, metadata: Optional[Dict] = None):
-    """Adiciona mensagem ao banco"""
-    conn = get_connection()
-    if not conn:
-        raise Exception("PostgreSQL não disponível")
-    
-    try:
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+    @staticmethod
+    def add_message(session_id: str, role: str, content: str, metadata: Optional[Dict] = None):
+        """Adiciona mensagem ao banco"""
+        conn = get_connection()
+        if not conn:
+            raise Exception("PostgreSQL não disponível")
         
-        timestamp = datetime.now()
-        metadata_json = json.dumps(metadata or {})
-        
-        cursor.execute("""
-            INSERT INTO messages (session_id, role, content, timestamp, metadata)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, session_id, role, content, timestamp, metadata
-        """, (session_id, role, content, timestamp, metadata_json))
-        
-        result = cursor.fetchone()
-        conn.commit()
-        cursor.close()
-        
-        # CORRIGIR AQUI - converter para dict Python puro
-        return {
-            "id": int(result["id"]),
-            "session_id": str(result["session_id"]),
-            "role": str(result["role"]),
-            "content": str(result["content"]),
-            "timestamp": result["timestamp"].isoformat() if result["timestamp"] else None,
-            "metadata": json.loads(result["metadata"]) if result["metadata"] else {}
-        }
-        
-    except Exception as e:
-        conn.rollback()
-        raise e
-    finally:
-        release_connection(conn)
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            timestamp = datetime.now()
+            
+            # Converte metadata para JSON string
+            if isinstance(metadata, str):
+                metadata_json = metadata
+            elif isinstance(metadata, dict):
+                metadata_json = json.dumps(metadata)
+            else:
+                metadata_json = json.dumps({})
+            
+            cursor.execute("""
+                INSERT INTO messages (session_id, role, content, timestamp, metadata)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id, session_id, role, content, timestamp, metadata
+            """, (session_id, role, content, timestamp, metadata_json))
+            
+            result = cursor.fetchone()
+            conn.commit()
+            cursor.close()
+            
+            return {
+                "id": int(result["id"]),
+                "session_id": str(result["session_id"]),
+                "role": str(result["role"]),
+                "content": str(result["content"]),
+                "timestamp": result["timestamp"].isoformat() if result["timestamp"] else None,
+                "metadata": json.loads(result["metadata"]) if result["metadata"] else {}
+            }
+            
+        except Exception as e:
+            conn.rollback()
+            print(f"❌ Erro em add_message: {e}")
+            raise e
+        finally:
+            release_connection(conn)
     
     @staticmethod
     def get_messages(session_id: str, limit: Optional[int] = None) -> List[Dict]:
@@ -185,9 +192,9 @@ def add_message(session_id: str, role: str, content: str, metadata: Optional[Dic
             messages = []
             for row in rows:
                 messages.append({
-                    "role": row["role"],
-                    "content": row["content"],
-                    "timestamp": row["timestamp"].isoformat(),
+                    "role": str(row["role"]),
+                    "content": str(row["content"]),
+                    "timestamp": row["timestamp"].isoformat() if row["timestamp"] else None,
                     "metadata": json.loads(row["metadata"]) if row["metadata"] else {}
                 })
             
@@ -197,7 +204,7 @@ def add_message(session_id: str, role: str, content: str, metadata: Optional[Dic
             return messages
             
         except Exception as e:
-            print(f"❌ Erro ao buscar mensagens: {e}")
+            print(f"❌ Erro em get_messages: {e}")
             return []
         finally:
             release_connection(conn)
@@ -215,6 +222,7 @@ def add_message(session_id: str, role: str, content: str, metadata: Optional[Dic
             cursor.execute("""
                 SELECT DISTINCT session_id
                 FROM messages
+                GROUP BY session_id
                 ORDER BY MAX(created_at) DESC
             """)
             
@@ -224,7 +232,7 @@ def add_message(session_id: str, role: str, content: str, metadata: Optional[Dic
             return [row[0] for row in rows]
             
         except Exception as e:
-            print(f"❌ Erro ao listar sessões: {e}")
+            print(f"❌ Erro em list_sessions: {e}")
             return []
         finally:
             release_connection(conn)
@@ -241,10 +249,11 @@ def add_message(session_id: str, role: str, content: str, metadata: Optional[Dic
             cursor.execute("DELETE FROM messages WHERE session_id = %s", (session_id,))
             conn.commit()
             cursor.close()
+            print(f"✅ Sessão {session_id} limpa")
             
         except Exception as e:
             conn.rollback()
-            print(f"❌ Erro ao limpar sessão: {e}")
+            print(f"❌ Erro em clear_session: {e}")
         finally:
             release_connection(conn)
 
@@ -252,9 +261,11 @@ def add_message(session_id: str, role: str, content: str, metadata: Optional[Dic
 # Testa conexão ao importar
 try:
     if PSYCOPG2_AVAILABLE:
-        get_pool()
-        DATABASE_AVAILABLE = True
+        pool = get_pool()
+        DATABASE_AVAILABLE = pool is not None
     else:
         DATABASE_AVAILABLE = False
 except:
     DATABASE_AVAILABLE = False
+
+print(f"DATABASE_AVAILABLE: {DATABASE_AVAILABLE}")
