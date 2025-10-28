@@ -1102,90 +1102,64 @@ if st.sidebar.button("🔍 Debug", key="btn_debug"):
         st.sidebar.error(f"Erro: {e}")
 
 # st.sidebar.write("---")
-# st.sidebar.write("### 🔄 Sincronização API")
-
-# col_sync1, col_sync2 = st.sidebar.columns(2)
-
-# with col_sync1:
-#     session_id_api = st.text_input(
-#         "Session ID",
-#         value="default",
-#         key="session_id_input",
-#         help="ID da sessão para sincronizar com API"
-#     )
-
-# with col_sync2:
-#     if st.button("🔄 Sincronizar", use_container_width=True):
-#         with st.spinner("Sincronizando..."):
-#             novas = sincronizar_mensagens_api(session_id_api)
-#             if novas > 0:
-#                 st.success(f"✅ {novas} nova(s) mensagem(ns)")
-#                 time.sleep(1)
-#                 st.rerun()
-#             else:
-#                 st.info("Nenhuma mensagem nova")
-
-# # Auto-sincronização (opcional)
-# auto_sync = st.sidebar.toggle(
-#     "Auto-sync (5s)", 
-#     value=False, 
-#     help="Sincroniza automaticamente a cada 5 segundos"
-# )
-
-# if auto_sync:
-#     if "last_sync" not in st.session_state:
-#         st.session_state["last_sync"] = time.time()
-    
-#     if time.time() - st.session_state["last_sync"] > 5:
-#         novas = sincronizar_mensagens_api(session_id_api)
-#         st.session_state["last_sync"] = time.time()
-#         if novas > 0:
-#             st.rerun()
-
-# st.sidebar.caption(f"📡 Session ID atual: `{session_id_api}`")
-# st.sidebar.write("---")
-
-# # Evolução do Sentimento - GRÁFICO MELHORADO
-# st.sidebar.write("### 📈 Evolução do Sentimento")
-# with st.sidebar.container():
-#     _hist = st.session_state.get("sentiment_history", [])
-#     if _hist:
-#         _scores = [h.get("score", 0.0) for h in _hist]
+# BOTÃO DE EMERGÊNCIA
+st.sidebar.write("---")
+if st.sidebar.button("⚡ Forçar Sync Completa", type="primary"):
+    try:
+        from database import Database
         
-#         # Cria DataFrame para melhor controle do gráfico
-#         if _PANDAS_AVAILABLE:
-#             df_sent = pd.DataFrame({
-#                 'Mensagem': range(1, len(_scores) + 1),
-#                 'Score': _scores
-#             })
-            
-#             # Gráfico de linha com espaçamento reduzido
-#             st.line_chart(
-#                 df_sent.set_index('Mensagem'),
-#                 height=180,
-#                use_container_width=True
-#             )
-#         else:
-#             # Fallback sem pandas
-#             st.line_chart(_scores, height=180,use_container_width=True)
+        session_id = st.session_state.get("session_id_input", "default")
         
-#         _last = _hist[-1]
+        # Limpa estado atual
+        st.session_state["lista_mensagens"] = []
+        st.session_state["user_corpus_text"] = ""
+        st.session_state["user_token_sequences"] = []
+        st.session_state["sentiment_history"] = []
         
-#         # Estatísticas resumidas
-#         col_s1, col_s2 = st.sidebar.columns(2)
-#         with col_s1:
-#             st.caption(f"**Total:** {len(_scores)}")
-#         with col_s2:
-#             st.caption(f"**Último:** {_last.get('label', '?')}")
+        # Busca TODAS as mensagens do banco
+        msgs_db = Database.get_messages(session_id)
         
-#         # Média e tendência
-#         media_score = sum(_scores) / len(_scores)
-#         tendencia = "↗️" if len(_scores) > 1 and _scores[-1] > _scores[-2] else "↘️" if len(_scores) > 1 and _scores[-1] < _scores[-2] else "→"
+        st.sidebar.write(f"📥 Encontradas: {len(msgs_db)} mensagens")
         
-#         st.sidebar.caption(f"**Média:** {media_score:.2f} {tendencia}")
+        # Processa cada uma
+        for msg in msgs_db:
+            if msg["role"] == "user":
+                # Corrige ortografia
+                texto = corrigir_texto(msg["content"]) if CONFIG.get("correcao_ortografica") else msg["content"]
+                
+                # Adiciona ao histórico
+                st.session_state["lista_mensagens"].append({
+                    "role": "user",
+                    "content": texto,
+                    "timestamp": msg.get("timestamp"),
+                    "metadata": msg.get("metadata", {})
+                })
+                
+                # Tokeniza
+                tokens = tokenize_pt(texto, corrigir=False)
+                if tokens:
+                    st.session_state["user_corpus_text"] += " " + " ".join(tokens)
+                    st.session_state["user_token_sequences"].append(tokens)
+                
+                # Sentimento
+                if CONFIG.get("sentimento_habilitado"):
+                    try:
+                        sent = analisar_sentimento(texto, CONFIG["modelo_sentimento"])
+                        st.session_state["sentiment_history"].append({
+                            "idx": len(st.session_state["sentiment_history"]) + 1,
+                            "label": sent.get("label", "neutro"),
+                            "confidence": float(sent.get("confidence", 0.0)),
+                            "score": _score_from_label(sent["label"], sent["confidence"])
+                        })
+                    except:
+                        pass
         
-#     else:
-#         st.info("Envie uma mensagem para ver o gráfico.")
+        st.sidebar.success(f"✅ {len(msgs_db)} mensagens sincronizadas!")
+        time.sleep(1)
+        st.rerun()
+        
+    except Exception as e:
+        st.sidebar.error(f"❌ Erro: {e}")
 
 st.sidebar.write("---")
 
