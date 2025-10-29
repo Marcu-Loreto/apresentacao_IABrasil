@@ -10,9 +10,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 import threading
-from db_funcs import db_get_messages
-# ...
-return db_get_messages(session_id, limit)
 
 # Tenta importar Database
 try:
