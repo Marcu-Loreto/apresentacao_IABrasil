@@ -754,7 +754,15 @@ if "cache_cleared" not in st.session_state:
 st.title("🧑‍💬 Analisador de Sentimentos")
 st.write("---")
 st.caption("• 🧠 Sentimento  • ☁️ WordCloud  • 🔗 Relação de Palavras  • ✏️ Correção Automática")
-
+st.caption(
+     f"""
+            <p style="color:#ef4444; font-size:0.95rem; margin-top:0;">
+            <b>Powered by Neori.Tech</b> | Versão 1.1 | {datetime.now().strftime('%Y')}
+        </p>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
 # ═══════════════════════════════════════════════════════════════
 # ESTADO DA APLICAÇÃO
 # ═══════════════════════════════════════════════════════════════
@@ -921,75 +929,11 @@ if mensagem_usuario:
 
 st.markdown("---")
 
-# col_info1, col_info2, col_info3 = st.columns(3)
-
-# with col_info1:
-#     st.caption(f"**Modelo:** {CONFIG['modelo_padrao']}")
-#     st.caption(f"**Temperatura:** {CONFIG['temperatura_padrao']}")
-
-# with col_info2:
-#     total_msgs = len(st.session_state.get("lista_mensagens", []))
-#     msgs_user = sum(1 for m in st.session_state.get("lista_mensagens", []) if m["role"] == "user")
-#     st.caption(f"**Mensagens:** {total_msgs} ({msgs_user} do usuário)")
-
-# with col_info3:
-#     if CONFIG.get("correcao_ortografica", True):
-#         st.caption("✅ **Correção:** Ativa")
-#     else:
-#         st.caption("⚠️ **Correção:** Desativada")
-
-st.sidebar.write("**Informações do Sistema**")
-st.sidebar.caption(
-    "🤖 - "
-    f"Powered by Neori.Tech | Versão 1.1 | {datetime.now().strftime('%Y')}"
-)
-
 # ═══════════════════════════════════════════════════════════════
 # SIDEBAR - PAINEL DE CONTROLE
 # ═══════════════════════════════════════════════════════════════
 
 st.sidebar.title("⚙️ PAINEL DE CONTROLE")
-
-# # Na sidebar, adicione uma seção de debug
-# st.sidebar.write("---")
-# st.sidebar.write("### 🔍 Status do Sistema")
-
-# # Testa PostgreSQL
-# try:
-#     from database import Database, DATABASE_AVAILABLE
-    
-#     if DATABASE_AVAILABLE:
-#         st.sidebar.success("✅ PostgreSQL conectado")
-        
-#         # Testa escrita
-#         if st.sidebar.button("🧪 Testar DB"):
-#             try:
-#                 msg = Database.add_message(
-#                     session_id="test_system",
-#                     role="system",
-#                     content="Teste de conexão PostgreSQL",
-#                     metadata={"source": "streamlit_test"}
-#                 )
-#                 st.sidebar.success(f"✅ Teste OK! ID: {msg.get('id')}")
-                
-#                 # Busca mensagens de teste
-#                 msgs = Database.get_messages("test_system", limit=5)
-#                 st.sidebar.caption(f"📊 {len(msgs)} mensagens de teste")
-                
-#             except Exception as e:
-#                 st.sidebar.error(f"❌ Erro no teste: {e}")
-#     else:
-#         st.sidebar.warning("⚠️ PostgreSQL indisponível")
-        
-# except Exception as e:
-#     st.sidebar.error(f"❌ Erro ao importar Database: {e}")
-
-# # Testa SharedState
-# try:
-#     sessions = SharedState.list_sessions()
-#     st.sidebar.caption(f"📂 Sessões ativas: {len(sessions)}")
-# except Exception as e:
-#     st.sidebar.error(f"❌ SharedState: {e}")
 
 # Correção Ortográfica
 st.sidebar.write("### ✏️ Correção Ortográfica")
@@ -1019,132 +963,6 @@ sent_container.caption("Última mensagem do usuário")
 # ═══════════════════════════════════════════════════════════════
 # SIDEBAR: SINCRONIZAÇÃO API
 # ═══════════════════════════════════════════════════════════════
-
-
-# st.sidebar.write("---")
-# st.sidebar.write("### 🔄 Sincronização API")
-
-# col_sync1, col_sync2 = st.sidebar.columns([2, 1])
-
-# with col_sync1:
-#     session_id_api = st.text_input(
-#         "Session ID",
-#         value="default",
-#         key="session_id_input",
-#         help="ID da sessão para sincronizar"
-#     )
-
-# with col_sync2:
-#     st.write("")  # Espaçamento
-#     st.write("")
-#     if st.button("🔄 Sync", use_container_width=True, key="btn_sync"):
-#         with st.spinner("Sincronizando..."):
-#             try:
-#                 novas = sincronizar_mensagens_api(session_id_api)
-#                 if novas > 0:
-#                     st.success(f"✅ {novas} nova(s)")
-#                     time.sleep(1)
-#                     st.rerun()
-#                 else:
-#                     st.info("Nenhuma nova")
-#             except Exception as e:
-#                 st.error(f"❌ {e}")
-
-# # Auto-sincronização
-# auto_sync = st.sidebar.toggle(
-#     "Auto-sync (10s)", 
-#     value=False,
-#     key="auto_sync_toggle",
-#     help="Sincroniza automaticamente a cada 10 segundos"
-# )
-
-# if auto_sync:
-#     # Inicializa timestamp
-#     if "last_sync_time" not in st.session_state:
-#         st.session_state["last_sync_time"] = time.time()
-    
-#     # Verifica se passou 10 segundos
-#     tempo_decorrido = time.time() - st.session_state["last_sync_time"]
-    
-#     if tempo_decorrido >= 10:
-#         try:
-#             novas = sincronizar_mensagens_api(session_id_api)
-#             st.session_state["last_sync_time"] = time.time()
-            
-#             if novas > 0:
-#                 st.rerun()
-#         except Exception as e:
-#             st.sidebar.error(f"Erro auto-sync: {e}")
-    
-#     # Mostra countdown
-#     proximo_sync = 10 - int(tempo_decorrido)
-#     st.sidebar.caption(f"⏱️ Próximo sync em: {proximo_sync}s")
-
-# # Mostra info da sessão atual
-# st.sidebar.caption(f"📡 Session: `{session_id_api}`")
-
-# # Botão de debug
-# if st.sidebar.button("🔍 Debug", key="btn_debug"):
-#     try:
-#         from database import Database
-        
-#         msgs_db = Database.get_messages(session_id_api)
-#         st.sidebar.write(f"**DB:** {len(msgs_db)} mensagens")
-        
-#         msgs_state = st.session_state.get("lista_mensagens", [])
-#         st.sidebar.write(f"**Streamlit:** {len(msgs_state)} mensagens")
-        
-#         if msgs_db:
-#             st.sidebar.write("**Últimas 3 no DB:**")
-#             for msg in msgs_db[-3:]:
-#                 st.sidebar.caption(f"• {msg['role']}: {msg['content'][:30]}...")
-        
-#     except Exception as e:
-#         st.sidebar.error(f"Erro: {e}")
-
-# st.sidebar.write("---")
-# st.sidebar.write("### 🔄 Sincronização API")
-
-# col_sync1, col_sync2 = st.sidebar.columns(2)
-
-# with col_sync1:
-#     session_id_api = st.text_input(
-#         "Session ID",
-#         value="default",
-#         key="session_id_input",
-#         help="ID da sessão para sincronizar com API"
-#     )
-
-# with col_sync2:
-#     if st.button("🔄 Sincronizar", use_container_width=True):
-#         with st.spinner("Sincronizando..."):
-#             novas = sincronizar_mensagens_api(session_id_api)
-#             if novas > 0:
-#                 st.success(f"✅ {novas} nova(s) mensagem(ns)")
-#                 time.sleep(1)
-#                 st.rerun()
-#             else:
-#                 st.info("Nenhuma mensagem nova")
-
-# # Auto-sincronização (opcional)
-# auto_sync = st.sidebar.toggle(
-#     "Auto-sync (5s)", 
-#     value=False, 
-#     help="Sincroniza automaticamente a cada 5 segundos"
-# )
-
-# if auto_sync:
-#     if "last_sync" not in st.session_state:
-#         st.session_state["last_sync"] = time.time()
-    
-#     if time.time() - st.session_state["last_sync"] > 5:
-#         novas = sincronizar_mensagens_api(session_id_api)
-#         st.session_state["last_sync"] = time.time()
-#         if novas > 0:
-#             st.rerun()
-
-# st.sidebar.caption(f"📡 Session ID atual: `{session_id_api}`")
-# st.sidebar.write("---")
 
 # Evolução do Sentimento - GRÁFICO MELHORADO
 st.sidebar.write("### 📈 Evolução do Sentimento")
