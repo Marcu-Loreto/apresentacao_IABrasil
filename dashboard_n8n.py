@@ -6,6 +6,8 @@ import networkx as nx
 from pyvis.network import Network
 import streamlit.components.v1 as components
 
+# qat-voxmap-atendimento-dashboard.nl9itp.easypanel.host
+
 # Integrações locais
 from shared_state import SharedState  # usa PostgreSQL > Redis > JSON
 from analysis import processar_lista_mensagens  # NÃO alteramos a lógica de análise
@@ -48,12 +50,17 @@ if reload_now:
 mensagens = carregar_mensagens(session_id, limit)
 
 # Auto refresh simples
+# if auto_refresh:
+#     # Registra um noop para invalidar cache de tempos em tempos
+#     st.write(f"⏱️ Atualizando em ~10s • {time.strftime('%H:%M:%S')}")
+#     st.experimental_set_query_params(ts=int(time.time()))
+#     # Pequena espera para evitar loop muito agressivo ao vivo
+#     time.sleep(0.2)
 if auto_refresh:
-    # Registra um noop para invalidar cache de tempos em tempos
     st.write(f"⏱️ Atualizando em ~10s • {time.strftime('%H:%M:%S')}")
-    st.experimental_set_query_params(ts=int(time.time()))
-    # Pequena espera para evitar loop muito agressivo ao vivo
+    st.query_params.update({"ts": str(int(time.time()))})
     time.sleep(0.2)
+
 
 if not mensagens:
     st.info("Sem mensagens para analisar. Envie mensagens via N8N/API para a sessão selecionada.")

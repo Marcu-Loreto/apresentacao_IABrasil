@@ -947,48 +947,48 @@ st.caption(
 # SIDEBAR - PAINEL DE CONTROLE
 # ═══════════════════════════════════════════════════════════════
 
-st.sidebar.title("⚙️ PAINEL DE CONTROLE")
+# st.sidebar.title("⚙️ PAINEL DE CONTROLE")
 
-# Na sidebar, adicione uma seção de debug
-st.sidebar.write("---")
-st.sidebar.write("### 🔍 Status do Sistema")
+# # Na sidebar, adicione uma seção de debug
+# st.sidebar.write("---")
+# st.sidebar.write("### 🔍 Status do Sistema")
 
-# Testa PostgreSQL
-try:
-    from database import Database, DATABASE_AVAILABLE
+# # Testa PostgreSQL
+# try:
+#     from database import Database, DATABASE_AVAILABLE
     
-    if DATABASE_AVAILABLE:
-        st.sidebar.success("✅ PostgreSQL conectado")
+#     if DATABASE_AVAILABLE:
+#         st.sidebar.success("✅ PostgreSQL conectado")
         
-        # Testa escrita
-        if st.sidebar.button("🧪 Testar DB"):
-            try:
-                msg = Database.add_message(
-                    session_id="test_system",
-                    role="system",
-                    content="Teste de conexão PostgreSQL",
-                    metadata={"source": "streamlit_test"}
-                )
-                st.sidebar.success(f"✅ Teste OK! ID: {msg.get('id')}")
+#         # Testa escrita
+#         if st.sidebar.button("🧪 Testar DB"):
+#             try:
+#                 msg = Database.add_message(
+#                     session_id="test_system",
+#                     role="system",
+#                     content="Teste de conexão PostgreSQL",
+#                     metadata={"source": "streamlit_test"}
+#                 )
+#                 st.sidebar.success(f"✅ Teste OK! ID: {msg.get('id')}")
                 
-                # Busca mensagens de teste
-                msgs = Database.get_messages("test_system", limit=5)
-                st.sidebar.caption(f"📊 {len(msgs)} mensagens de teste")
+#                 # Busca mensagens de teste
+#                 msgs = Database.get_messages("test_system", limit=5)
+#                 st.sidebar.caption(f"📊 {len(msgs)} mensagens de teste")
                 
-            except Exception as e:
-                st.sidebar.error(f"❌ Erro no teste: {e}")
-    else:
-        st.sidebar.warning("⚠️ PostgreSQL indisponível")
+#             except Exception as e:
+#                 st.sidebar.error(f"❌ Erro no teste: {e}")
+#     else:
+#         st.sidebar.warning("⚠️ PostgreSQL indisponível")
         
-except Exception as e:
-    st.sidebar.error(f"❌ Erro ao importar Database: {e}")
+# except Exception as e:
+#     st.sidebar.error(f"❌ Erro ao importar Database: {e}")
 
-# Testa SharedState
-try:
-    sessions = SharedState.list_sessions()
-    st.sidebar.caption(f"📂 Sessões ativas: {len(sessions)}")
-except Exception as e:
-    st.sidebar.error(f"❌ SharedState: {e}")
+# # Testa SharedState
+# try:
+#     sessions = SharedState.list_sessions()
+#     st.sidebar.caption(f"📂 Sessões ativas: {len(sessions)}")
+# except Exception as e:
+#     st.sidebar.error(f"❌ SharedState: {e}")
 
 # Correção Ortográfica
 st.sidebar.write("### ✏️ Correção Ortográfica")
@@ -1020,86 +1020,86 @@ sent_container.caption("Última mensagem do usuário")
 # ═══════════════════════════════════════════════════════════════
 
 
-st.sidebar.write("---")
-st.sidebar.write("### 🔄 Sincronização API")
+# st.sidebar.write("---")
+# st.sidebar.write("### 🔄 Sincronização API")
 
-col_sync1, col_sync2 = st.sidebar.columns([2, 1])
+# col_sync1, col_sync2 = st.sidebar.columns([2, 1])
 
-with col_sync1:
-    session_id_api = st.text_input(
-        "Session ID",
-        value="default",
-        key="session_id_input",
-        help="ID da sessão para sincronizar"
-    )
+# with col_sync1:
+#     session_id_api = st.text_input(
+#         "Session ID",
+#         value="default",
+#         key="session_id_input",
+#         help="ID da sessão para sincronizar"
+#     )
 
-with col_sync2:
-    st.write("")  # Espaçamento
-    st.write("")
-    if st.button("🔄 Sync", use_container_width=True, key="btn_sync"):
-        with st.spinner("Sincronizando..."):
-            try:
-                novas = sincronizar_mensagens_api(session_id_api)
-                if novas > 0:
-                    st.success(f"✅ {novas} nova(s)")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.info("Nenhuma nova")
-            except Exception as e:
-                st.error(f"❌ {e}")
+# with col_sync2:
+#     st.write("")  # Espaçamento
+#     st.write("")
+#     if st.button("🔄 Sync", use_container_width=True, key="btn_sync"):
+#         with st.spinner("Sincronizando..."):
+#             try:
+#                 novas = sincronizar_mensagens_api(session_id_api)
+#                 if novas > 0:
+#                     st.success(f"✅ {novas} nova(s)")
+#                     time.sleep(1)
+#                     st.rerun()
+#                 else:
+#                     st.info("Nenhuma nova")
+#             except Exception as e:
+#                 st.error(f"❌ {e}")
 
-# Auto-sincronização
-auto_sync = st.sidebar.toggle(
-    "Auto-sync (10s)", 
-    value=False,
-    key="auto_sync_toggle",
-    help="Sincroniza automaticamente a cada 10 segundos"
-)
+# # Auto-sincronização
+# auto_sync = st.sidebar.toggle(
+#     "Auto-sync (10s)", 
+#     value=False,
+#     key="auto_sync_toggle",
+#     help="Sincroniza automaticamente a cada 10 segundos"
+# )
 
-if auto_sync:
-    # Inicializa timestamp
-    if "last_sync_time" not in st.session_state:
-        st.session_state["last_sync_time"] = time.time()
+# if auto_sync:
+#     # Inicializa timestamp
+#     if "last_sync_time" not in st.session_state:
+#         st.session_state["last_sync_time"] = time.time()
     
-    # Verifica se passou 10 segundos
-    tempo_decorrido = time.time() - st.session_state["last_sync_time"]
+#     # Verifica se passou 10 segundos
+#     tempo_decorrido = time.time() - st.session_state["last_sync_time"]
     
-    if tempo_decorrido >= 10:
-        try:
-            novas = sincronizar_mensagens_api(session_id_api)
-            st.session_state["last_sync_time"] = time.time()
+#     if tempo_decorrido >= 10:
+#         try:
+#             novas = sincronizar_mensagens_api(session_id_api)
+#             st.session_state["last_sync_time"] = time.time()
             
-            if novas > 0:
-                st.rerun()
-        except Exception as e:
-            st.sidebar.error(f"Erro auto-sync: {e}")
+#             if novas > 0:
+#                 st.rerun()
+#         except Exception as e:
+#             st.sidebar.error(f"Erro auto-sync: {e}")
     
-    # Mostra countdown
-    proximo_sync = 10 - int(tempo_decorrido)
-    st.sidebar.caption(f"⏱️ Próximo sync em: {proximo_sync}s")
+#     # Mostra countdown
+#     proximo_sync = 10 - int(tempo_decorrido)
+#     st.sidebar.caption(f"⏱️ Próximo sync em: {proximo_sync}s")
 
-# Mostra info da sessão atual
-st.sidebar.caption(f"📡 Session: `{session_id_api}`")
+# # Mostra info da sessão atual
+# st.sidebar.caption(f"📡 Session: `{session_id_api}`")
 
-# Botão de debug
-if st.sidebar.button("🔍 Debug", key="btn_debug"):
-    try:
-        from database import Database
+# # Botão de debug
+# if st.sidebar.button("🔍 Debug", key="btn_debug"):
+#     try:
+#         from database import Database
         
-        msgs_db = Database.get_messages(session_id_api)
-        st.sidebar.write(f"**DB:** {len(msgs_db)} mensagens")
+#         msgs_db = Database.get_messages(session_id_api)
+#         st.sidebar.write(f"**DB:** {len(msgs_db)} mensagens")
         
-        msgs_state = st.session_state.get("lista_mensagens", [])
-        st.sidebar.write(f"**Streamlit:** {len(msgs_state)} mensagens")
+#         msgs_state = st.session_state.get("lista_mensagens", [])
+#         st.sidebar.write(f"**Streamlit:** {len(msgs_state)} mensagens")
         
-        if msgs_db:
-            st.sidebar.write("**Últimas 3 no DB:**")
-            for msg in msgs_db[-3:]:
-                st.sidebar.caption(f"• {msg['role']}: {msg['content'][:30]}...")
+#         if msgs_db:
+#             st.sidebar.write("**Últimas 3 no DB:**")
+#             for msg in msgs_db[-3:]:
+#                 st.sidebar.caption(f"• {msg['role']}: {msg['content'][:30]}...")
         
-    except Exception as e:
-        st.sidebar.error(f"Erro: {e}")
+#     except Exception as e:
+#         st.sidebar.error(f"Erro: {e}")
 
 # st.sidebar.write("---")
 # st.sidebar.write("### 🔄 Sincronização API")
@@ -1145,47 +1145,47 @@ if st.sidebar.button("🔍 Debug", key="btn_debug"):
 # st.sidebar.caption(f"📡 Session ID atual: `{session_id_api}`")
 # st.sidebar.write("---")
 
-# # Evolução do Sentimento - GRÁFICO MELHORADO
-# st.sidebar.write("### 📈 Evolução do Sentimento")
-# with st.sidebar.container():
-#     _hist = st.session_state.get("sentiment_history", [])
-#     if _hist:
-#         _scores = [h.get("score", 0.0) for h in _hist]
+# Evolução do Sentimento - GRÁFICO MELHORADO
+st.sidebar.write("### 📈 Evolução do Sentimento")
+with st.sidebar.container():
+    _hist = st.session_state.get("sentiment_history", [])
+    if _hist:
+        _scores = [h.get("score", 0.0) for h in _hist]
         
-#         # Cria DataFrame para melhor controle do gráfico
-#         if _PANDAS_AVAILABLE:
-#             df_sent = pd.DataFrame({
-#                 'Mensagem': range(1, len(_scores) + 1),
-#                 'Score': _scores
-#             })
+        # Cria DataFrame para melhor controle do gráfico
+        if _PANDAS_AVAILABLE:
+            df_sent = pd.DataFrame({
+                'Mensagem': range(1, len(_scores) + 1),
+                'Score': _scores
+            })
             
-#             # Gráfico de linha com espaçamento reduzido
-#             st.line_chart(
-#                 df_sent.set_index('Mensagem'),
-#                 height=180,
-#                use_container_width=True
-#             )
-#         else:
-#             # Fallback sem pandas
-#             st.line_chart(_scores, height=180,use_container_width=True)
+            # Gráfico de linha com espaçamento reduzido
+            st.line_chart(
+                df_sent.set_index('Mensagem'),
+                height=180,
+               use_container_width=True
+            )
+        else:
+            # Fallback sem pandas
+            st.line_chart(_scores, height=180,use_container_width=True)
         
-#         _last = _hist[-1]
+        _last = _hist[-1]
         
-#         # Estatísticas resumidas
-#         col_s1, col_s2 = st.sidebar.columns(2)
-#         with col_s1:
-#             st.caption(f"**Total:** {len(_scores)}")
-#         with col_s2:
-#             st.caption(f"**Último:** {_last.get('label', '?')}")
+        # Estatísticas resumidas
+        col_s1, col_s2 = st.sidebar.columns(2)
+        with col_s1:
+            st.caption(f"**Total:** {len(_scores)}")
+        with col_s2:
+            st.caption(f"**Último:** {_last.get('label', '?')}")
         
-#         # Média e tendência
-#         media_score = sum(_scores) / len(_scores)
-#         tendencia = "↗️" if len(_scores) > 1 and _scores[-1] > _scores[-2] else "↘️" if len(_scores) > 1 and _scores[-1] < _scores[-2] else "→"
+        # Média e tendência
+        media_score = sum(_scores) / len(_scores)
+        tendencia = "↗️" if len(_scores) > 1 and _scores[-1] > _scores[-2] else "↘️" if len(_scores) > 1 and _scores[-1] < _scores[-2] else "→"
         
-#         st.sidebar.caption(f"**Média:** {media_score:.2f} {tendencia}")
+        st.sidebar.caption(f"**Média:** {media_score:.2f} {tendencia}")
         
-#     else:
-#         st.info("Envie uma mensagem para ver o gráfico.")
+    else:
+        st.info("Envie uma mensagem para ver o gráfico.")
 
 st.sidebar.write("---")
 
