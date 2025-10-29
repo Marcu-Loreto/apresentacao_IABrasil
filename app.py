@@ -1022,42 +1022,96 @@ with col_wc1:
 st.sidebar.write("---")
 
 # Relação
+# st.sidebar.write("### 🔗 Relação de Palavras")
+# graph_container = st.sidebar.container()
+
+# with graph_container:
+#     min_edge_weight = st.sidebar.slider(
+#         "Mín. coocorrências (aresta)",
+#         1, 5, 1,
+#         help="Filtra arestas fracas"
+#     )
+    
+#     max_path_depth = st.sidebar.slider(
+#         "Profundidade máx. caminho",
+#         1, 8, 4,
+#         help="Caminhos até a palavra alvo"
+#     )
+    
+#     show_paths_only = st.sidebar.toggle(
+#         "Mostrar apenas caminhos até palavra alvo",
+#         value=True
+#     )
+    
+#     graph_dark_mode = st.sidebar.toggle(
+#         "Modo escuro (grafo)",
+#         value=True
+#     )
+
+# st.sidebar.write("---")
+
+# # Exportar Relatórios
+# st.sidebar.write("### 📊 Exportar Relatórios")
+
+# col_report1, col_report2 = st.sidebar.columns(2)
+
+# with col_report1:
+#     if st.button("📄 TXT",use_container_width=True, key="sidebar_report_txt"):
+#         relatorio = f"""
+# Paleta única do app (defina uma vez, no topo do arquivo ou antes da sidebar)
+PALETA = {
+    "azul_claro": "#93C5FD",  # very low
+    "verde":      "#22C55E",  # low+
+    "amarelo":    "#F59E0B",  # mid
+    "laranja":    "#F97316",  # high
+    "vermelho":   "#EF4444",  # very high
+}
+
 st.sidebar.write("### 🔗 Relação de Palavras")
 graph_container = st.sidebar.container()
 
 with graph_container:
     min_edge_weight = st.sidebar.slider(
-        "Mín. coocorrências (aresta)",
-        1, 5, 1,
-        help="Filtra arestas fracas"
+        "Mín. coocorrências (aresta)", 1, 5, 1, help="Filtra arestas fracas"
     )
-    
     max_path_depth = st.sidebar.slider(
-        "Profundidade máx. caminho",
-        1, 8, 4,
-        help="Caminhos até a palavra alvo"
+        "Profundidade máx. caminho", 1, 8, 4, help="Caminhos até a palavra alvo"
     )
-    
     show_paths_only = st.sidebar.toggle(
-        "Mostrar apenas caminhos até palavra alvo",
-        value=True
+        "Mostrar apenas caminhos até palavra alvo", value=True
     )
-    
     graph_dark_mode = st.sidebar.toggle(
-        "Modo escuro (grafo)",
-        value=True
+        "Modo escuro (grafo)", value=True
+    )
+
+    # Legenda de cores (peso da aresta)
+    st.sidebar.markdown(
+        f"""
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+                    margin:6px 0 8px 0;font-size:.85rem;">
+          <span><span style="display:inline-block;width:12px;height:12px;
+                background:{PALETA['azul_claro']};border-radius:2px;
+                margin-right:6px;"></span>muito baixa</span>
+          <span><span style="display:inline-block;width:12px;height:12px;
+                background:{PALETA['verde']};border-radius:2px;
+                margin-right:6px;"></span>baixa</span>
+          <span><span style="display:inline-block;width:12px;height:12px;
+                background:{PALETA['amarelo']};border-radius:2px;
+                margin-right:6px;"></span>média</span>
+          <span><span style="display:inline-block;width:12px;height:12px;
+                background:{PALETA['laranja']};border-radius:2px;
+                margin-right:6px;"></span>alta</span>
+          <span><span style="display:inline-block;width:12px;height:12px;
+                background:{PALETA['vermelho']};border-radius:2px;
+                margin-right:6px;"></span>muito alta</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 st.sidebar.write("---")
 
-# Exportar Relatórios
-st.sidebar.write("### 📊 Exportar Relatórios")
 
-col_report1, col_report2 = st.sidebar.columns(2)
-
-with col_report1:
-    if st.button("📄 TXT",use_container_width=True, key="sidebar_report_txt"):
-        relatorio = f"""
 ═══════════════════════════════════════════════════════════════
 RELATÓRIO DE ANÁLISE DE CONVERSAS
 ═══════════════════════════════════════════════════════════════
