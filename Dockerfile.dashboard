@@ -1,0 +1,29 @@
+# Dockerfile.streamlit
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instala dependências do sistema (incluindo libpq para PostgreSQL)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copia requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copia TODOS os arquivos Python
+COPY database.py .
+COPY shared_state.py .
+#COPY app.py .
+COPY analysis.py .
+COPY dashboard_n8n.py .
+
+# Expõe porta
+EXPOSE 8503
+
+# Comando de inicialização
+CMD ["streamlit", "run", "dashboard_n8n.py", "--server.port=8503", "--server.address=0.0.0.0", "--server.headless=true"]
