@@ -759,6 +759,9 @@ st.caption("• 🧠 Sentimento  • ☁️ WordCloud  • 🔗 Relação de Pal
 # ESTADO DA APLICAÇÃO
 # ═══════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════
+# ESTADO DA APLICAÇÃO
+# ═══════════════════════════════════════════════════════════════
 
 if "lista_mensagens" not in st.session_state:
     st.session_state["lista_mensagens"] = []
@@ -944,43 +947,41 @@ st.caption(
 # SIDEBAR - PAINEL DE CONTROLE
 # ═══════════════════════════════════════════════════════════════
 
-st.sidebar.title("⚙️ PAINEL DE CONTROLE")
+# st.sidebar.title("⚙️ PAINEL DE CONTROLE")
 
-# Na sidebar, adicione uma seção de debug
-st.sidebar.write("---")
-st.sidebar.write("### 🔍 Status do Sistema")
+# # Na sidebar, adicione uma seção de debug
+# st.sidebar.write("---")
+# st.sidebar.write("### 🔍 Status do Sistema")
 
 # # Testa PostgreSQL
-from psycopg2.extras import Json
-meta_json = Json(metadata or {}, dumps=lambda x: json.dumps(x, ensure_ascii=False, default=str))
-try:
-    from database import Database, DATABASE_AVAILABLE
+# try:
+#     from database import Database, DATABASE_AVAILABLE
     
-    if DATABASE_AVAILABLE:
-        st.sidebar.success("✅ PostgreSQL conectado")
+#     if DATABASE_AVAILABLE:
+#         st.sidebar.success("✅ PostgreSQL conectado")
         
-        # Testa escrita
-        if st.sidebar.button("🧪 Testar DB"):
-            try:
-                msg = Database.add_message(
-                    session_id="test_system",
-                    role="system",
-                    content="Teste de conexão PostgreSQL",
-                    metadata={"source": "streamlit_test"}
-                )
-                st.sidebar.success(f"✅ Teste OK! ID: {msg.get('id')}")
+#         # Testa escrita
+#         if st.sidebar.button("🧪 Testar DB"):
+#             try:
+#                 msg = Database.add_message(
+#                     session_id="test_system",
+#                     role="system",
+#                     content="Teste de conexão PostgreSQL",
+#                     metadata={"source": "streamlit_test"}
+#                 )
+#                 st.sidebar.success(f"✅ Teste OK! ID: {msg.get('id')}")
                 
-                # Busca mensagens de teste
-                msgs = Database.get_messages("test_system", limit=5)
-                st.sidebar.caption(f"📊 {len(msgs)} mensagens de teste")
+#                 # Busca mensagens de teste
+#                 msgs = Database.get_messages("test_system", limit=5)
+#                 st.sidebar.caption(f"📊 {len(msgs)} mensagens de teste")
                 
-            except Exception as e:
-                st.sidebar.error(f"❌ Erro no teste: {e}")
-    else:
-        st.sidebar.warning("⚠️ PostgreSQL indisponível")
+#             except Exception as e:
+#                 st.sidebar.error(f"❌ Erro no teste: {e}")
+#     else:
+#         st.sidebar.warning("⚠️ PostgreSQL indisponível")
         
-except Exception as e:
-    st.sidebar.error(f"❌ Erro ao importar Database: {e}")
+# except Exception as e:
+#     st.sidebar.error(f"❌ Erro ao importar Database: {e}")
 
 # # Testa SharedState
 # try:
