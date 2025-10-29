@@ -161,83 +161,68 @@ else:
 st.divider()
 st.subheader("🔗 Grafo: Palavras Relacionadas")
 
-# Toggle de tema só para o grafo
-dark_mode = st.toggle("🌙 Dark mode do grafo", value=True, help="Fundo escuro + nós em tons de verde")
-
 if grafo and isinstance(grafo, nx.Graph) and len(grafo.nodes) > 0:
-    # Cores do tema
-    bg = "#0b1220" if dark_mode else "#ffffff"   # fundo
-    fg = "#e5e7eb" if dark_mode else "#111827"   # cor do texto
-    edge_col = "#64748b" if dark_mode else "#94a3b8"
+    # Paleta (5 níveis): azul claro → verde → amarelo → laranja → vermelho
+    PALETA = {
+        "azul_claro": "#93C5FD",  # very low
+        "verde": "#22C55E",       # low+
+        "amarelo": "#F59E0B",     # mid
+        "laranja": "#F97316",     # high
+        "vermelho": "#EF4444",    # very high
+    }
 
-    # Cria a rede com tema
-    net = Network(height="520px", width="100%", bgcolor=bg, font_color=fg)
+    counts = [grafo.nodes[n].get("count", 1) for n in grafo.nodes()]
+    vmin, vmax = (min(counts), max(counts)) if counts else (1, 1)
+
+    def cor_por_magnitude(valor: float) -> str:
+        if vmax == vmin:
+            return PALETA["azul_claro"]
+        t = (valor - vmin) / (vmax - vmin)
+        if t < 0.20:
+            return PALETA["azul_claro"]
+        elif t < 0.40:
+            return PALETA["verde"]
+        elif t < 0.60:
+            return PALETA["amarelo"]
+        elif t < 0.80:
+            return PALETA["laranja"]
+        else:
+            return PALETA["vermelho"]
+
+    net = Network(height="520px", width="100%")
     net.barnes_hut()
 
-    # ----- escala por frequência (data['count']) e cor em gradiente de verde -----
-    counts = [d.get("count", 1) for _, d in grafo.nodes(data=True)]
-    cmin, cmax = (min(counts), max(counts)) if counts else (1, 1)
-
-    def scale(x: int | float) -> float:
-        if cmax == cmin:
-            return 0.5
-        return (x - cmin) / (cmax - cmin)
-
-    def mix_hex(c1: str, c2: str, t: float) -> str:
-        """Interpola entre duas cores hex (#RRGGBB)."""
-        a = tuple(int(c1[i:i+2], 16) for i in (1, 3, 5))
-        b = tuple(int(c2[i:i+2], 16) for i in (1, 3, 5))
-        m = tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
-        return f"#{m[0]:02x}{m[1]:02x}{m[2]:02x}"
-
-    # Verde claro -> verde forte
-    GREEN_LOW  = "#bbf7d0"   # light (Emerald-100)
-    GREEN_HIGH = "#16a34a"   # strong (Emerald-600)
-    BORDER     = "#10b981" if dark_mode else "#059669"  # borda mais saturada
-
-    # Nós
     for node, data in grafo.nodes(data=True):
-        freq = int(data.get("count", 1))
-        t = scale(freq)
-        color_bg = mix_hex(GREEN_LOW, GREEN_HIGH, t)  # mais verde quanto maior a frequência
+        freq = data.get("count", 1)
         net.add_node(
             node,
             label=node,
             title=f"Freq: {freq}",
-            value=max(5, freq),  # controla o tamanho do nó
-            color={
-                "background": color_bg,
-                "border": BORDER,
-                "highlight": {"background": color_bg, "border": BORDER},
-            },
+            color=cor_por_magnitude(freq),
         )
 
-    # Arestas
     for u, v, data in grafo.edges(data=True):
-        net.add_edge(u, v, value=data.get("weight", 1), color=edge_col)
+        net.add_edge(u, v, value=data.get("weight", 1))
 
-    # Opções visuais adicionais (tamanhos e suavização)
-    net.set_options("""
-    {
-      "nodes": {
-        "shape": "dot",
-        "scaling": {"min": 6, "max": 36},
-        "font": {"size": 14}
-      },
-      "edges": {
-        "smooth": true
-      },
-      "physics": {
-        "barnesHut": {"gravitationalConstant": -8000, "springLength": 160}
-      }
-    }
-    """)
+    # Legenda
+    st.markdown(
+        f"""
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:4px 0 8px 0;font-size:.9rem;">
+          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['azul_claro']};border-radius:2px;margin-right:6px;"></span>muito baixa</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['verde']};border-radius:2px;margin-right:6px;"></span>baixa</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['amarelo']};border-radius:2px;margin-right:6px;"></span>média</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['laranja']};border-radius:2px;margin-right:6px;"></span>alta</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['vermelho']};border-radius:2px;margin-right:6px;"></span>muito alta</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     net.save_graph("graph.html")
     with open("graph.html", "r", encoding="utf-8") as f:
         graph_html = f.read()
     components.html(graph_html, height=540, scrolling=True)
-
 else:
     st.warning("Grafo indisponível ou sem dados suficientes.")
+
 
