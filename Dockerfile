@@ -3,19 +3,21 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instala dependências do sistema
+# Instala dependências do sistema (incluindo libpq para PostgreSQL)
 RUN apt-get update && apt-get install -y \
     gcc \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia requirements primeiro (cache)
+# Copia requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copia código da aplicação
-COPY api.py .
+# Copia TODOS os arquivos Python
+COPY database.py .
 COPY shared_state.py .
+COPY api.py .
 
 # Expõe porta
 EXPOSE 8000
