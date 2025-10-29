@@ -1,4 +1,5 @@
 # dashboard_n8n.py
+from datetime import datetime
 import time
 import streamlit as st
 import pandas as pd
@@ -19,8 +20,16 @@ st.set_page_config(
     )
 
 st.title("📊 Painel de Sentimentos")
-st.caption("Mensagens armazenadas no banco  + análise de sentimento")
-
+# st.caption("Mensagens armazenadas no banco  + análise de sentimento")
+st.caption(
+     f"""
+            <p style="color:#ef4444; font-size:0.95rem; margin-top:0;">
+            <b>Powered by Neori.Tech</b> | Versão 1.1 | {datetime.now().strftime('%Y')}
+        </p>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
 
 # --- Sidebar: fonte de dados (APENAS selectbox) ---
 st.sidebar.title("⚙️ Fonte de dados")
