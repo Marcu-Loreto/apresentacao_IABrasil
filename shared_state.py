@@ -1,220 +1,410 @@
 # shared_state.py
 """
-Estado compartilhado entre FastAPI e Streamlit
-Usa PostgreSQL via database.py
+Estado compartilhado (DB > Redis > JSON)
+- Tenta usar PostgreSQL (database.py)
+- Se indisponível, usa Redis (opcional)
+- Fallback final: arquivo JSON local
 """
+
+from __future__ import annotations
 
 import json
 import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-import threading
 
-# Tenta importar Database
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# PostgreSQL (opcional, preferido)
 try:
     from database import Database, DATABASE_AVAILABLE as DB_AVAILABLE
-    print("✅ database.py importado com sucesso")
-except ImportError as e:
-    print(f"⚠️ Erro ao importar database.py: {e}")
+    print(f"ℹ️ DB_AVAILABLE = {DB_AVAILABLE}")
+except Exception as e:
+    print(f"❌ Falha import Database: {e}")
     Database = None
     DB_AVAILABLE = False
 
-# Configuração Redis (fallback)
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
-
-# Tenta Redis
+# Redis (opcional)
 try:
     import redis
+    REDIS_HOST = os.getenv("REDIS_HOST") or "localhost"
+    REDIS_PORT = int(os.getenv("REDIS_PORT") or 6379)
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD") or None
+
     redis_client = redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,
         password=REDIS_PASSWORD,
-        db=0,
         decode_responses=True,
-        socket_connect_timeout=5
+        socket_connect_timeout=3,
     )
+    # ping rápido
     redis_client.ping()
     REDIS_AVAILABLE = True
-    print(f"✅ Redis conectado: {REDIS_HOST}:{REDIS_PORT}")
+    print(f"✅ Redis conectado em {REDIS_HOST}:{REDIS_PORT}")
 except Exception as e:
-    REDIS_AVAILABLE = False
-    redis_client = None
     print(f"⚠️ Redis indisponível: {e}")
+    redis_client = None
+    REDIS_AVAILABLE = False
 
-# Fallback: JSON
-STATE_FILE = Path("shared_state.json")
-_file_lock = threading.Lock()
+STATE_FILE = Path(os.getenv("STATE_FILE") or "shared_state.json")
 
 
 class SharedState:
-    """Gerencia estado compartilhado com prioridade: PostgreSQL > Redis > JSON"""
-    
-    # Expõe status para debug
-    DATABASE_AVAILABLE = DB_AVAILABLE
-    REDIS_AVAILABLE = REDIS_AVAILABLE
-    
+    DATABASE_AVAILABLE: bool = DB_AVAILABLE
+    REDIS_AVAILABLE: bool = REDIS_AVAILABLE
+
+    # ---------------------- helpers JSON ----------------------
+    @staticmethod
+    def _load_json() -> Dict:
+        if STATE_FILE.exists():
+            try:
+                return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                return {"sessions": {}}
+        return {"sessions": {}}
+
+    @staticmethod
+    def _save_json(data: Dict) -> None:
+        STATE_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # ---------------------- API pública ----------------------
     @staticmethod
     def add_message(session_id: str, role: str, content: str, metadata: Optional[Dict] = None):
-        """Adiciona mensagem - prioriza PostgreSQL"""
-        
-        # 1ª opção: PostgreSQL
-        if DB_AVAILABLE and Database:
+        # 1) DB
+        if SharedState.DATABASE_AVAILABLE and Database:
             try:
                 return Database.add_message(session_id, role, content, metadata)
             except Exception as e:
                 print(f"❌ PostgreSQL add_message falhou: {e}")
-        
-        # 2ª opção: Redis
-        if REDIS_AVAILABLE:
+
+        # 2) Redis
+        if SharedState.REDIS_AVAILABLE and redis_client:
             try:
-                session = SharedState._get_session_redis(session_id)
-                message = {
+                key = f"session:{session_id}"
+                raw = redis_client.get(key)
+                data = json.loads(raw) if raw else {"mensagens": []}
+                msg = {
                     "role": role,
                     "content": content,
-                    "timestamp": datetime.now().isoformat(),
-                    "metadata": metadata or {}
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "metadata": metadata or {},
                 }
-                session["mensagens"].append(message)
-                redis_client.setex(
-                    f"session:{session_id}",
-                    86400,
-                    json.dumps(session, ensure_ascii=False)
-                )
-                return message
+                data["mensagens"].append(msg)
+                # TTL 1 dia
+                redis_client.setex(key, 86400, json.dumps(data, ensure_ascii=False))
+                return msg
             except Exception as e:
                 print(f"❌ Redis add_message falhou: {e}")
-        
-        # 3ª opção: JSON
-        return SharedState._add_message_json(session_id, role, content, metadata)
-    
+
+        # 3) JSON
+        data = SharedState._load_json()
+        msg = {
+            "role": role,
+            "content": content,
+            "timestamp": datetime.utcnow().isoformat(),
+            "metadata": metadata or {},
+        }
+        data.setdefault("sessions", {}).setdefault(session_id, {"mensagens": []})["mensagens"].append(msg)
+        SharedState._save_json(data)
+        return msg
+
     @staticmethod
     def get_messages(session_id: str, limit: Optional[int] = None) -> List[Dict]:
-        """Obtém mensagens - prioriza PostgreSQL"""
-        
-        # 1ª opção: PostgreSQL
-        if DB_AVAILABLE and Database:
+        # 1) DB
+        if SharedState.DATABASE_AVAILABLE and Database:
             try:
-                messages = Database.get_messages(session_id, limit)
-                if messages is not None:
-                    return messages
+                return Database.get_messages(session_id, limit)
             except Exception as e:
                 print(f"❌ PostgreSQL get_messages falhou: {e}")
-        
-        # 2ª opção: Redis
-        if REDIS_AVAILABLE:
+
+        # 2) Redis
+        if SharedState.REDIS_AVAILABLE and redis_client:
             try:
-                session = SharedState._get_session_redis(session_id)
-                messages = session.get("mensagens", [])
-                return messages[-limit:] if limit else messages
+                raw = redis_client.get(f"session:{session_id}")
+                data = json.loads(raw) if raw else {"mensagens": []}
+                msgs = data.get("mensagens", [])
+                if limit:
+                    msgs = msgs[-limit:]
+                return msgs
             except Exception as e:
                 print(f"❌ Redis get_messages falhou: {e}")
-        
-        # 3ª opção: JSON
-        return SharedState._get_messages_json(session_id, limit)
-    
+
+        # 3) JSON
+        data = SharedState._load_json()
+        msgs = data.get("sessions", {}).get(session_id, {}).get("mensagens", [])
+        if limit:
+            msgs = msgs[-limit:]
+        return msgs
+
     @staticmethod
-    def list_sessions() -> List[str]:
-        """Lista sessões"""
-        
-        # PostgreSQL
-        if DB_AVAILABLE and Database:
+    def list_sessions(limit: int = 100) -> List[str]:
+        # 1) DB
+        if SharedState.DATABASE_AVAILABLE and Database:
             try:
-                sessions = Database.list_sessions()
-                if sessions is not None:
-                    return sessions
+                return Database.list_sessions(limit)
             except Exception as e:
                 print(f"❌ PostgreSQL list_sessions falhou: {e}")
-        
-        # Redis
-        if REDIS_AVAILABLE:
+
+        # 2) Redis
+        if SharedState.REDIS_AVAILABLE and redis_client:
             try:
+                # Lista chaves de sessões
                 keys = redis_client.keys("session:*")
-                return [k.replace("session:", "") for k in keys]
+                sessions = [k.split(":", 1)[1] for k in keys]
+                return sessions[:limit]
             except Exception as e:
                 print(f"❌ Redis list_sessions falhou: {e}")
-        
-        # JSON
-        return SharedState._list_sessions_json()
-    
+
+        # 3) JSON
+        data = SharedState._load_json()
+        return list(data.get("sessions", {}).keys())[:limit]
+
     @staticmethod
-    def clear_session(session_id: str):
-        """Limpa sessão"""
-        
-        if DB_AVAILABLE and Database:
+    def clear_session(session_id: str) -> None:
+        # 1) DB
+        if SharedState.DATABASE_AVAILABLE and Database:
             try:
                 Database.clear_session(session_id)
                 return
             except Exception as e:
                 print(f"❌ PostgreSQL clear_session falhou: {e}")
-        
-        if REDIS_AVAILABLE:
+
+        # 2) Redis
+        if SharedState.REDIS_AVAILABLE and redis_client:
             try:
                 redis_client.delete(f"session:{session_id}")
                 return
             except Exception as e:
                 print(f"❌ Redis clear_session falhou: {e}")
+
+        # 3) JSON
+        data = SharedState._load_json()
+        if "sessions" in data and session_id in data["sessions"]:
+            del data["sessions"][session_id]
+            SharedState._save_json(data)
+
+
+# # shared_state.py
+# """
+# Estado compartilhado entre FastAPI e Streamlit
+# Usa PostgreSQL via database.py
+# """
+
+# import json
+# import os
+# from datetime import datetime
+# from pathlib import Path
+# from typing import Dict, List, Optional
+# import threading
+
+# # Tenta importar Database
+# try:
+#     from database import Database, DATABASE_AVAILABLE as DB_AVAILABLE
+#     print("✅ database.py importado com sucesso")
+# except ImportError as e:
+#     print(f"⚠️ Erro ao importar database.py: {e}")
+#     Database = None
+#     DB_AVAILABLE = False
+
+# # Configuração Redis (fallback)
+# REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+# REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+# REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+
+# # Tenta Redis
+# try:
+#     import redis
+#     redis_client = redis.Redis(
+#         host=REDIS_HOST,
+#         port=REDIS_PORT,
+#         password=REDIS_PASSWORD,
+#         db=0,
+#         decode_responses=True,
+#         socket_connect_timeout=5
+#     )
+#     redis_client.ping()
+#     REDIS_AVAILABLE = True
+#     print(f"✅ Redis conectado: {REDIS_HOST}:{REDIS_PORT}")
+# except Exception as e:
+#     REDIS_AVAILABLE = False
+#     redis_client = None
+#     print(f"⚠️ Redis indisponível: {e}")
+
+# # Fallback: JSON
+# STATE_FILE = Path("shared_state.json")
+# _file_lock = threading.Lock()
+
+
+# class SharedState:
+#     """Gerencia estado compartilhado com prioridade: PostgreSQL > Redis > JSON"""
+    
+#     # Expõe status para debug
+#     DATABASE_AVAILABLE = DB_AVAILABLE
+#     REDIS_AVAILABLE = REDIS_AVAILABLE
+    
+#     @staticmethod
+#     def add_message(session_id: str, role: str, content: str, metadata: Optional[Dict] = None):
+#         """Adiciona mensagem - prioriza PostgreSQL"""
         
-        SharedState._clear_session_json(session_id)
+#         # 1ª opção: PostgreSQL
+#         if DB_AVAILABLE and Database:
+#             try:
+#                 return Database.add_message(session_id, role, content, metadata)
+#             except Exception as e:
+#                 print(f"❌ PostgreSQL add_message falhou: {e}")
+        
+#         # 2ª opção: Redis
+#         if REDIS_AVAILABLE:
+#             try:
+#                 session = SharedState._get_session_redis(session_id)
+#                 message = {
+#                     "role": role,
+#                     "content": content,
+#                     "timestamp": datetime.now().isoformat(),
+#                     "metadata": metadata or {}
+#                 }
+#                 session["mensagens"].append(message)
+#                 redis_client.setex(
+#                     f"session:{session_id}",
+#                     86400,
+#                     json.dumps(session, ensure_ascii=False)
+#                 )
+#                 return message
+#             except Exception as e:
+#                 print(f"❌ Redis add_message falhou: {e}")
+        
+#         # 3ª opção: JSON
+#         return SharedState._add_message_json(session_id, role, content, metadata)
     
-    # Métodos auxiliares Redis
-    @staticmethod
-    def _get_session_redis(session_id: str) -> Dict:
-        data = redis_client.get(f"session:{session_id}")
-        return json.loads(data) if data else {"mensagens": [], "metadata": {}}
+#     @staticmethod
+#     def get_messages(session_id: str, limit: Optional[int] = None) -> List[Dict]:
+#         """Obtém mensagens - prioriza PostgreSQL"""
+        
+#         # 1ª opção: PostgreSQL
+#         if DB_AVAILABLE and Database:
+#             try:
+#                 messages = Database.get_messages(session_id, limit)
+#                 if messages is not None:
+#                     return messages
+#             except Exception as e:
+#                 print(f"❌ PostgreSQL get_messages falhou: {e}")
+        
+#         # 2ª opção: Redis
+#         if REDIS_AVAILABLE:
+#             try:
+#                 session = SharedState._get_session_redis(session_id)
+#                 messages = session.get("mensagens", [])
+#                 return messages[-limit:] if limit else messages
+#             except Exception as e:
+#                 print(f"❌ Redis get_messages falhou: {e}")
+        
+#         # 3ª opção: JSON
+#         return SharedState._get_messages_json(session_id, limit)
     
-    # Métodos auxiliares JSON
-    @staticmethod
-    def _add_message_json(session_id: str, role: str, content: str, metadata: Optional[Dict]):
-        with _file_lock:
-            state = SharedState._load_json()
-            if session_id not in state["sessions"]:
-                state["sessions"][session_id] = {"mensagens": [], "metadata": {}}
+#     @staticmethod
+#     def list_sessions() -> List[str]:
+#         """Lista sessões"""
+        
+#         # PostgreSQL
+#         if DB_AVAILABLE and Database:
+#             try:
+#                 sessions = Database.list_sessions()
+#                 if sessions is not None:
+#                     return sessions
+#             except Exception as e:
+#                 print(f"❌ PostgreSQL list_sessions falhou: {e}")
+        
+#         # Redis
+#         if REDIS_AVAILABLE:
+#             try:
+#                 keys = redis_client.keys("session:*")
+#                 return [k.replace("session:", "") for k in keys]
+#             except Exception as e:
+#                 print(f"❌ Redis list_sessions falhou: {e}")
+        
+#         # JSON
+#         return SharedState._list_sessions_json()
+    
+#     @staticmethod
+#     def clear_session(session_id: str):
+#         """Limpa sessão"""
+        
+#         if DB_AVAILABLE and Database:
+#             try:
+#                 Database.clear_session(session_id)
+#                 return
+#             except Exception as e:
+#                 print(f"❌ PostgreSQL clear_session falhou: {e}")
+        
+#         if REDIS_AVAILABLE:
+#             try:
+#                 redis_client.delete(f"session:{session_id}")
+#                 return
+#             except Exception as e:
+#                 print(f"❌ Redis clear_session falhou: {e}")
+        
+#         SharedState._clear_session_json(session_id)
+    
+#     # Métodos auxiliares Redis
+#     @staticmethod
+#     def _get_session_redis(session_id: str) -> Dict:
+#         data = redis_client.get(f"session:{session_id}")
+#         return json.loads(data) if data else {"mensagens": [], "metadata": {}}
+    
+#     # Métodos auxiliares JSON
+#     @staticmethod
+#     def _add_message_json(session_id: str, role: str, content: str, metadata: Optional[Dict]):
+#         with _file_lock:
+#             state = SharedState._load_json()
+#             if session_id not in state["sessions"]:
+#                 state["sessions"][session_id] = {"mensagens": [], "metadata": {}}
             
-            message = {
-                "role": role,
-                "content": content,
-                "timestamp": datetime.now().isoformat(),
-                "metadata": metadata or {}
-            }
-            state["sessions"][session_id]["mensagens"].append(message)
-            SharedState._save_json(state)
-            return message
+#             message = {
+#                 "role": role,
+#                 "content": content,
+#                 "timestamp": datetime.now().isoformat(),
+#                 "metadata": metadata or {}
+#             }
+#             state["sessions"][session_id]["mensagens"].append(message)
+#             SharedState._save_json(state)
+#             return message
     
-    @staticmethod
-    def _get_messages_json(session_id: str, limit: Optional[int]) -> List[Dict]:
-        with _file_lock:
-            state = SharedState._load_json()
-            messages = state.get("sessions", {}).get(session_id, {}).get("mensagens", [])
-            return messages[-limit:] if limit else messages
+#     @staticmethod
+#     def _get_messages_json(session_id: str, limit: Optional[int]) -> List[Dict]:
+#         with _file_lock:
+#             state = SharedState._load_json()
+#             messages = state.get("sessions", {}).get(session_id, {}).get("mensagens", [])
+#             return messages[-limit:] if limit else messages
     
-    @staticmethod
-    def _list_sessions_json() -> List[str]:
-        with _file_lock:
-            state = SharedState._load_json()
-            return list(state.get("sessions", {}).keys())
+#     @staticmethod
+#     def _list_sessions_json() -> List[str]:
+#         with _file_lock:
+#             state = SharedState._load_json()
+#             return list(state.get("sessions", {}).keys())
     
-    @staticmethod
-    def _clear_session_json(session_id: str):
-        with _file_lock:
-            state = SharedState._load_json()
-            if session_id in state.get("sessions", {}):
-                del state["sessions"][session_id]
-                SharedState._save_json(state)
+#     @staticmethod
+#     def _clear_session_json(session_id: str):
+#         with _file_lock:
+#             state = SharedState._load_json()
+#             if session_id in state.get("sessions", {}):
+#                 del state["sessions"][session_id]
+#                 SharedState._save_json(state)
     
-    @staticmethod
-    def _load_json() -> Dict:
-        if STATE_FILE.exists():
-            try:
-                with open(STATE_FILE, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except:
-                return {"sessions": {}}
-        return {"sessions": {}}
+#     @staticmethod
+#     def _load_json() -> Dict:
+#         if STATE_FILE.exists():
+#             try:
+#                 with open(STATE_FILE, 'r', encoding='utf-8') as f:
+#                     return json.load(f)
+#             except:
+#                 return {"sessions": {}}
+#         return {"sessions": {}}
     
-    @staticmethod
-    def _save_json(data: Dict):
-        with open(STATE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+#     @staticmethod
+#     def _save_json(data: Dict):
+#         with open(STATE_FILE, 'w', encoding='utf-8') as f:
+#             json.dump(data, f, ensure_ascii=False, indent=2)
