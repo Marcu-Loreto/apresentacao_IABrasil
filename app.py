@@ -921,33 +921,34 @@ if mensagem_usuario:
 
 st.markdown("---")
 
-col_info1, col_info2, col_info3 = st.columns(3)
+# col_info1, col_info2, col_info3 = st.columns(3)
 
-with col_info1:
-    st.caption(f"**Modelo:** {CONFIG['modelo_padrao']}")
-    st.caption(f"**Temperatura:** {CONFIG['temperatura_padrao']}")
+# with col_info1:
+#     st.caption(f"**Modelo:** {CONFIG['modelo_padrao']}")
+#     st.caption(f"**Temperatura:** {CONFIG['temperatura_padrao']}")
 
-with col_info2:
-    total_msgs = len(st.session_state.get("lista_mensagens", []))
-    msgs_user = sum(1 for m in st.session_state.get("lista_mensagens", []) if m["role"] == "user")
-    st.caption(f"**Mensagens:** {total_msgs} ({msgs_user} do usuário)")
+# with col_info2:
+#     total_msgs = len(st.session_state.get("lista_mensagens", []))
+#     msgs_user = sum(1 for m in st.session_state.get("lista_mensagens", []) if m["role"] == "user")
+#     st.caption(f"**Mensagens:** {total_msgs} ({msgs_user} do usuário)")
 
-with col_info3:
-    if CONFIG.get("correcao_ortografica", True):
-        st.caption("✅ **Correção:** Ativa")
-    else:
-        st.caption("⚠️ **Correção:** Desativada")
+# with col_info3:
+#     if CONFIG.get("correcao_ortografica", True):
+#         st.caption("✅ **Correção:** Ativa")
+#     else:
+#         st.caption("⚠️ **Correção:** Desativada")
 
-st.caption(
-    "🤖 Assistente de Atendimento com IA | "
-    f"Powered by OpenAI | Versão 2.1 | {datetime.now().strftime('%Y')}"
+st.sidebar.write("**Informações do Sistema**")
+st.sidebar.caption(
+    "🤖 - "
+    f"Powered by Neori.Tech | Versão 1.1 | {datetime.now().strftime('%Y')}"
 )
 
 # ═══════════════════════════════════════════════════════════════
 # SIDEBAR - PAINEL DE CONTROLE
 # ═══════════════════════════════════════════════════════════════
 
-# st.sidebar.title("⚙️ PAINEL DE CONTROLE")
+st.sidebar.title("⚙️ PAINEL DE CONTROLE")
 
 # # Na sidebar, adicione uma seção de debug
 # st.sidebar.write("---")
