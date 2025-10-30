@@ -125,8 +125,24 @@ if not mensagens:
     st.info("Sem mensagens para analisar. Envie mensagens via N8N/API para a sessão selecionada.")
     st.stop()
 
-with st.spinner("🔍 Processando mensagens..."):
-    sentimentos, grafo, wordcloud_img = processar_lista_mensagens(mensagens)
+# with st.spinner("🔍 Processando mensagens..."):
+#     sentimentos, grafo, wordcloud_img = processar_lista_mensagens(mensagens)
+
+# Apenas recalcula se mensagens mudarem
+if "mensagens_anteriores" not in st.session_state or st.session_state["mensagens_anteriores"] != mensagens:
+    with st.spinner("🔍 Processando mensagens..."):
+        sentimentos, grafo, wordcloud_img = processar_lista_mensagens(mensagens)
+        st.session_state["sentimentos"] = sentimentos
+        st.session_state["grafo"] = grafo
+        st.session_state["wordcloud"] = wordcloud_img
+        st.session_state["mensagens_anteriores"] = mensagens
+else:
+    sentimentos = st.session_state["sentimentos"]
+    grafo = st.session_state["grafo"]
+    wordcloud_img = st.session_state["wordcloud"]
+
+    
+    
 
 # ===== UI de resultados =====
 col1, col2 = st.columns(2)
