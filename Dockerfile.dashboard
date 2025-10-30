@@ -3,27 +3,65 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instala dependências do sistema (incluindo libpq para PostgreSQL)
+# Instala dependências de sistema para build e pacotes Python
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     libpq-dev \
+    python3-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia requirements
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
 
-# Copia TODOS os arquivos Python
+# Instala pacotes Python com verbose (debug melhor em caso de erro)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --verbose -r requirements.txt
+
+# Copia arquivos Python da aplicação
 COPY database.py .
 COPY shared_state.py .
-#COPY app.py .
 COPY analysis.py .
 COPY dashboard_n8n.py .
 
-# Expõe porta
+# Expõe a porta padrão do app Streamlit
 EXPOSE 8503
 
-# Comando de inicialização
+# Inicializa o dashboard
 CMD ["streamlit", "run", "dashboard_n8n.py", "--server.port=8503", "--server.address=0.0.0.0", "--server.headless=true"]
+
+
+
+# # Dockerfile.streamlit
+# FROM python:3.11-slim
+
+# WORKDIR /app
+
+# # Instala dependências do sistema (incluindo libpq para PostgreSQL)
+# RUN apt-get update && apt-get install -y \
+#     gcc \
+#     g++ \
+#     libpq-dev \
+#     && rm -rf /var/lib/apt/lists/*
+
+# # Copia requirements
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir --upgrade pip && \
+#     pip install --no-cache-dir --verbose -r requirements.txt
+#     #pip install --no-cache-dir -r requirements.txt
+
+# # Copia TODOS os arquivos Python
+# COPY database.py .
+# COPY shared_state.py .
+# #COPY app.py .
+# COPY analysis.py .
+# COPY dashboard_n8n.py .
+
+# # Expõe porta
+# EXPOSE 8503
+
+# # Comando de inicialização
+# CMD ["streamlit", "run", "dashboard_n8n.py", "--server.port=8503", "--server.address=0.0.0.0", "--server.headless=true"]
