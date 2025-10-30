@@ -45,11 +45,16 @@ def listar_sessoes(limit=500) -> list[str]:
         return []
 
 # dois botões lado a lado
-col_btn1, col_btn2 = st.sidebar.columns(2)
-with col_btn1:
-    atualizar_lista = st.button("🔁 Atualizar lista", use_container_width=True)
-with col_btn2:
-    reload_now = st.button("🔄 Recarregar dados", use_container_width=True)
+
+reload_now = st.sidebar.button("🔄 Recarregar dados", use_container_width=True)
+atualizar_lista = st.sidebar.button("🔁 Atualizar lista", use_container_width=True)
+
+
+# col_btn1, col_btn2 = st.sidebar.columns(2)
+# with col_btn1:
+#     atualizar_lista = st.button("🔁 Atualizar lista", use_container_width=True)
+# with col_btn2:
+#     reload_now = st.button("🔄 Recarregar dados", use_container_width=True)
 
 if atualizar_lista:
     listar_sessoes.clear()
@@ -77,7 +82,7 @@ with status_cols[0]:
 
 
 
-reload_now = st.sidebar.button("🔄 Recarregar agora", use_container_width=True)
+#reload_now = st.sidebar.button("🔄 Recarregar agora", use_container_width=True)
 
 @st.cache_data(ttl=5)
 def carregar_mensagens(session: str, n: int) -> list[str]:
