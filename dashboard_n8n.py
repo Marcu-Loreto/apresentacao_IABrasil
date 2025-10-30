@@ -46,7 +46,7 @@ def listar_sessoes(limit=500) -> list[str]:
 
 # dois botões lado a lado
 
-reload_now = st.sidebar.button("🔄 Recarregar dados", use_container_width=True)
+
 atualizar_lista = st.sidebar.button("🔁 Atualizar lista", use_container_width=True)
 
 
@@ -93,6 +93,8 @@ def carregar_mensagens(session: str, n: int) -> list[str]:
     except Exception as e:
         st.error(f"Erro ao carregar mensagens: {e}")
         return []
+    
+reload_now = st.sidebar.button("🔄 Recarregar dados", use_container_width=True)
 
 if reload_now:
     carregar_mensagens.clear()
