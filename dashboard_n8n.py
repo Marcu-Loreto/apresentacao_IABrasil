@@ -142,88 +142,90 @@ if wordcloud_img:
     st.image(wordcloud_img, caption="Termos mais frequentes", use_container_width=True)
 else:
     st.info("Sem imagem gerada.")
-
-# st.divider()
-# st.subheader("🔗 Grafo: Palavras Relacionadas")
-# if grafo and isinstance(grafo, nx.Graph) and len(grafo.nodes) > 0:
-#     net = Network(height="520px", width="100%")
-#     net.barnes_hut()
-#     for node, data in grafo.nodes(data=True):
-#         net.add_node(node, label=node, title=f"Freq: {data.get('count', 1)}")
-#     for u, v, data in grafo.edges(data=True):
-#         net.add_edge(u, v, value=data.get("weight", 1))
-#     net.save_graph("graph.html")
-#     with open("graph.html", "r", encoding="utf-8") as f:
-#         graph_html = f.read()
-#     components.html(graph_html, height=540, scrolling=True)
-# else:
-#     st.warning("Grafo indisponível ou sem dados suficientes.")
+    
+# GRAFO
 
 st.divider()
 st.subheader("🔗 Grafo: Palavras Relacionadas")
-
 if grafo and isinstance(grafo, nx.Graph) and len(grafo.nodes) > 0:
-    # Paleta (5 níveis): azul claro → verde → amarelo → laranja → vermelho
-    PALETA = {
-        "azul_claro": "#93C5FD",  # very low
-        "verde": "#22C55E",       # low+
-        "amarelo": "#F59E0B",     # mid
-        "laranja": "#F97316",     # high
-        "vermelho": "#EF4444",    # very high
-    }
-
-    counts = [grafo.nodes[n].get("count", 1) for n in grafo.nodes()]
-    vmin, vmax = (min(counts), max(counts)) if counts else (1, 1)
-
-    def cor_por_magnitude(valor: float) -> str:
-        if vmax == vmin:
-            return PALETA["azul_claro"]
-        t = (valor - vmin) / (vmax - vmin)
-        if t < 0.20:
-            return PALETA["azul_claro"]
-        elif t < 0.40:
-            return PALETA["verde"]
-        elif t < 0.60:
-            return PALETA["amarelo"]
-        elif t < 0.80:
-            return PALETA["laranja"]
-        else:
-            return PALETA["vermelho"]
-
     net = Network(height="520px", width="100%")
     net.barnes_hut()
-
     for node, data in grafo.nodes(data=True):
-        freq = data.get("count", 1)
-        net.add_node(
-            node,
-            label=node,
-            title=f"Freq: {freq}",
-            color=cor_por_magnitude(freq),
-        )
-
+        net.add_node(node, label=node, title=f"Freq: {data.get('count', 1)}")
     for u, v, data in grafo.edges(data=True):
         net.add_edge(u, v, value=data.get("weight", 1))
-
-    # Legenda
-    st.markdown(
-        f"""
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:4px 0 8px 0;font-size:.9rem;">
-          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['azul_claro']};border-radius:2px;margin-right:6px;"></span>muito baixa</span>
-          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['verde']};border-radius:2px;margin-right:6px;"></span>baixa</span>
-          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['amarelo']};border-radius:2px;margin-right:6px;"></span>média</span>
-          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['laranja']};border-radius:2px;margin-right:6px;"></span>alta</span>
-          <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['vermelho']};border-radius:2px;margin-right:6px;"></span>muito alta</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
     net.save_graph("graph.html")
     with open("graph.html", "r", encoding="utf-8") as f:
         graph_html = f.read()
     components.html(graph_html, height=540, scrolling=True)
 else:
     st.warning("Grafo indisponível ou sem dados suficientes.")
+
+# st.divider()
+# st.subheader("🔗 Grafo: Palavras Relacionadas")
+
+# if grafo and isinstance(grafo, nx.Graph) and len(grafo.nodes) > 0:
+#     # Paleta (5 níveis): azul claro → verde → amarelo → laranja → vermelho
+#     PALETA = {
+#         "azul_claro": "#93C5FD",  # very low
+#         "verde": "#22C55E",       # low+
+#         "amarelo": "#F59E0B",     # mid
+#         "laranja": "#F97316",     # high
+#         "vermelho": "#EF4444",    # very high
+#     }
+
+#     counts = [grafo.nodes[n].get("count", 1) for n in grafo.nodes()]
+#     vmin, vmax = (min(counts), max(counts)) if counts else (1, 1)
+
+#     def cor_por_magnitude(valor: float) -> str:
+#         if vmax == vmin:
+#             return PALETA["azul_claro"]
+#         t = (valor - vmin) / (vmax - vmin)
+#         if t < 0.20:
+#             return PALETA["azul_claro"]
+#         elif t < 0.40:
+#             return PALETA["verde"]
+#         elif t < 0.60:
+#             return PALETA["amarelo"]
+#         elif t < 0.80:
+#             return PALETA["laranja"]
+#         else:
+#             return PALETA["vermelho"]
+
+#     net = Network(height="520px", width="100%")
+#     net.barnes_hut()
+
+#     for node, data in grafo.nodes(data=True):
+#         freq = data.get("count", 1)
+#         net.add_node(
+#             node,
+#             label=node,
+#             title=f"Freq: {freq}",
+#             color=cor_por_magnitude(freq),
+#         )
+
+#     for u, v, data in grafo.edges(data=True):
+#         net.add_edge(u, v, value=data.get("weight", 1))
+
+#     # Legenda
+#     st.markdown(
+#         f"""
+#         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:4px 0 8px 0;font-size:.9rem;">
+#           <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['azul_claro']};border-radius:2px;margin-right:6px;"></span>muito baixa</span>
+#           <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['verde']};border-radius:2px;margin-right:6px;"></span>baixa</span>
+#           <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['amarelo']};border-radius:2px;margin-right:6px;"></span>média</span>
+#           <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['laranja']};border-radius:2px;margin-right:6px;"></span>alta</span>
+#           <span><span style="display:inline-block;width:12px;height:12px;background:{PALETA['vermelho']};border-radius:2px;margin-right:6px;"></span>muito alta</span>
+#         </div>
+#         """,
+#         unsafe_allow_html=True,
+#     )
+
+#     net.save_graph("graph.html")
+#     with open("graph.html", "r", encoding="utf-8") as f:
+#         graph_html = f.read()
+#     components.html(graph_html, height=540, scrolling=True)
+# else:
+#     st.warning("Grafo indisponível ou sem dados suficientes.")
 
 
