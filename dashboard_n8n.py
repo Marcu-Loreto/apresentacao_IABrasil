@@ -72,7 +72,17 @@ session_id = st.sidebar.selectbox("ID do Usuario", options=sessoes, index=idx, k
 st.query_params.update({"session": session_id})  # opcional: persistir na URL
 
 limit = st.sidebar.number_input("Limite de mensagens", min_value=1, max_value=2000, value=200, step=10)
-auto_refresh = st.sidebar.toggle("Auto-refresh (a cada 10s)", value=False)
+
+#auto_refresh = st.sidebar.toggle("Auto-refresh (a cada 10s)", value=False)
+
+# from streamlit_autorefresh import st_autorefresh
+# import time
+
+# refresh_interval = 10_000 if auto_refresh else 0
+# count = st_autorefresh(interval=refresh_interval, key="refresh10s")
+
+# st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
+
 
 status_cols = st.sidebar.columns(2)
 with status_cols[0]:
@@ -81,13 +91,7 @@ with status_cols[1]:
     st.metric("Redis", "ON" if getattr(SharedState, "REDIS_AVAILABLE", False) else "OFF")
 
 
-from streamlit_autorefresh import st_autorefresh
-import time
 
-refresh_interval = 10_000 if auto_refresh else 0
-count = st_autorefresh(interval=refresh_interval, key="refresh10s")
-
-st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
 
 
 @st.cache_data(ttl=5)
