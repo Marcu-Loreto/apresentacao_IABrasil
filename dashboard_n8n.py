@@ -32,7 +32,8 @@ st.caption(
 )
 
 # --- Sidebar: fonte de dados (APENAS selectbox) ---
-st.sidebar.title("⚙️ Fonte de dados")
+st.sidebar.title ( "Conectado  >>>   API")
+st.sidebar.caption("⚙️ Fonte de dados")
 
 @st.cache_data(ttl=30)
 def listar_sessoes(limit=500) -> list[str]:

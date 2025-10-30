@@ -1006,8 +1006,16 @@ st.markdown("---")
 # ═══════════════════════════════════════════════════════════════
 # SIDEBAR - PAINEL DE CONTROLE
 # ═══════════════════════════════════════════════════════════════
+#st. sidebar.title(" ## >>> Whatsapp API <<< ")
+st.sidebar.markdown(
+    """
+    <h1 style='color: green;'>Whatsapp </h1>
+    """,
+    unsafe_allow_html=True
+)
 
 st.sidebar.title("⚙️ PAINEL DE CONTROLE")
+#st.caption("⚙️ PAINEL DE CONTROLE")
 
 # Correção Ortográfica
 st.sidebar.write("### ✏️ Correção Ortográfica")
