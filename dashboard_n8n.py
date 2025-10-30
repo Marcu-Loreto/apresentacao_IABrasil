@@ -145,21 +145,21 @@ else:
     
 # GRAFO
 
-st.divider()
-st.subheader("🔗 Grafo: Palavras Relacionadas")
-if grafo and isinstance(grafo, nx.Graph) and len(grafo.nodes) > 0:
-    net = Network(height="520px", width="100%")
-    net.barnes_hut()
-    for node, data in grafo.nodes(data=True):
-        net.add_node(node, label=node, title=f"Freq: {data.get('count', 1)}")
-    for u, v, data in grafo.edges(data=True):
-        net.add_edge(u, v, value=data.get("weight", 1))
-    net.save_graph("graph.html")
-    with open("graph.html", "r", encoding="utf-8") as f:
-        graph_html = f.read()
-    components.html(graph_html, height=540, scrolling=True)
-else:
-    st.warning("Grafo indisponível ou sem dados suficientes.")
+# st.divider()
+# st.subheader("🔗 Grafo: Palavras Relacionadas")
+# if grafo and isinstance(grafo, nx.Graph) and len(grafo.nodes) > 0:
+#     net = Network(height="520px", width="100%")
+#     net.barnes_hut()
+#     for node, data in grafo.nodes(data=True):
+#         net.add_node(node, label=node, title=f"Freq: {data.get('count', 1)}")
+#     for u, v, data in grafo.edges(data=True):
+#         net.add_edge(u, v, value=data.get("weight", 1))
+#     net.save_graph("graph.html")
+#     with open("graph.html", "r", encoding="utf-8") as f:
+#         graph_html = f.read()
+#     components.html(graph_html, height=540, scrolling=True)
+# else:
+#     st.warning("Grafo indisponível ou sem dados suficientes.")
 
 # st.divider()
 # st.subheader("🔗 Grafo: Palavras Relacionadas")
@@ -229,3 +229,30 @@ else:
 #     st.warning("Grafo indisponível ou sem dados suficientes.")
 
 
+st.divider()
+st.subheader("🔗 Grafo: Palavras Relacionadas")
+#st.sidebar.write("### 🔗 Relação de Palavras")
+graph_container = st.sidebar.container()
+
+with graph_container:
+    min_edge_weight = st.sidebar.slider(
+        "Mín. coocorrências (aresta)",
+        1, 5, 1,
+        help="Filtra arestas fracas"
+    )
+    
+    max_path_depth = st.sidebar.slider(
+        "Profundidade máx. caminho",
+        1, 8, 4,
+        help="Caminhos até a palavra alvo"
+    )
+    
+    show_paths_only = st.sidebar.toggle(
+        "Mostrar apenas caminhos até palavra alvo",
+        value=True
+    )
+    
+    graph_dark_mode = st.sidebar.toggle(
+        "Modo escuro (grafo)",
+        value=True
+    )
