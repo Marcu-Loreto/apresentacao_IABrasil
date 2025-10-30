@@ -72,7 +72,7 @@ session_id = st.sidebar.selectbox("ID do Usuario", options=sessoes, index=idx, k
 st.query_params.update({"session": session_id})  # opcional: persistir na URL
 
 limit = st.sidebar.number_input("Limite de mensagens", min_value=1, max_value=2000, value=200, step=10)
-#auto_refresh = st.sidebar.toggle("Auto-refresh (a cada 10s)", value=True)
+auto_refresh = st.sidebar.toggle("Auto-refresh (a cada 10s)", value=True)
 
 status_cols = st.sidebar.columns(2)
 with status_cols[0]:
@@ -115,10 +115,26 @@ mensagens = carregar_mensagens(session_id, limit)
 #     st.experimental_set_query_params(ts=int(time.time()))
 #     # Pequena espera para evitar loop muito agressivo ao vivo
 #     time.sleep(0.2)
+
+from streamlit_autorefresh import st_autorefresh
+import time
+#import streamlit as st
+
+# Auto-refresh a cada 10 segundos
+st_autorefresh(interval=10_000, key="refresh10s")
+
+st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
+
+
+# Auto-refresh real a cada 10 segundos
 if auto_refresh:
-    st.write(f"⏱️ Atualizando em ~10s • {time.strftime('%S')}")
-    st.query_params.update({"ts": str(int(time.time()))})
-    time.sleep(0.2)
+    st_autorefresh(interval=10_000, key="refresh10s")
+    st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
+
+# if auto_refresh:
+#     st.write(f"⏱️ Atualizando em ~ 10s • {time.strftime('%H:%M:%S')}")
+#     st.query_params.update({"ts": str(int(time.time()))})
+#     time.sleep(0.2)
 
 
 if not mensagens:
