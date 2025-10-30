@@ -81,8 +81,14 @@ with status_cols[1]:
     st.metric("Redis", "ON" if getattr(SharedState, "REDIS_AVAILABLE", False) else "OFF")
 
 
+from streamlit_autorefresh import st_autorefresh
+import time
 
-#reload_now = st.sidebar.button("🔄 Recarregar agora", use_container_width=True)
+refresh_interval = 10_000 if auto_refresh else 0
+count = st_autorefresh(interval=refresh_interval, key="refresh10s")
+
+st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
+
 
 @st.cache_data(ttl=5)
 def carregar_mensagens(session: str, n: int) -> list[str]:
@@ -116,20 +122,6 @@ mensagens = carregar_mensagens(session_id, limit)
 #     # Pequena espera para evitar loop muito agressivo ao vivo
 #     time.sleep(0.2)
 
-from streamlit_autorefresh import st_autorefresh
-import time
-#import streamlit as st
-
-# Auto-refresh a cada 10 segundos
-# st_autorefresh(interval=10_000, key="refresh10s")
-
-# st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
-
-
-# Auto-refresh real a cada 10 segundos
-if auto_refresh:
-    st_autorefresh(interval=10_000, key="refresh10s")
-    st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
 
 # if auto_refresh:
 #     st.write(f"⏱️ Atualizando em ~ 10s • {time.strftime('%H:%M:%S')}")
