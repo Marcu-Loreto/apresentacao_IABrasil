@@ -68,7 +68,7 @@ if not sessoes:
 pre = st.query_params.get("session")
 idx = sessoes.index(pre) if pre in sessoes else 0
 
-session_id = st.sidebar.selectbox("ID da sessão", options=sessoes, index=idx, key="sessao_select")
+session_id = st.sidebar.selectbox("ID do Usuario", options=sessoes, index=idx, key="sessao_select")
 st.query_params.update({"session": session_id})  # opcional: persistir na URL
 
 limit = st.sidebar.number_input("Limite de mensagens", min_value=1, max_value=2000, value=200, step=10)
@@ -77,8 +77,8 @@ auto_refresh = st.sidebar.toggle("Auto-refresh (a cada 10s)", value=True)
 status_cols = st.sidebar.columns(2)
 with status_cols[0]:
     st.metric("PostgreSQL", "ON" if getattr(SharedState, "DATABASE_AVAILABLE", False) else "OFF")
-#with status_cols[1]:
-    #st.metric("Redis", "ON" if getattr(SharedState, "REDIS_AVAILABLE", False) else "OFF")
+with status_cols[1]:
+    st.metric("Redis", "ON" if getattr(SharedState, "REDIS_AVAILABLE", False) else "OFF")
 
 
 
