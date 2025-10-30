@@ -121,9 +121,9 @@ import time
 #import streamlit as st
 
 # Auto-refresh a cada 10 segundos
-st_autorefresh(interval=10_000, key="refresh10s")
+# st_autorefresh(interval=10_000, key="refresh10s")
 
-st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
+# st.caption(f"🕒 Atualizado: {time.strftime('%H:%M:%S')}")
 
 
 # Auto-refresh real a cada 10 segundos
